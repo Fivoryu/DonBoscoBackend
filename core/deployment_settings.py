@@ -21,7 +21,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 CORS_ALLOWED_ORIGINS = [
-  'https://donboscofrontend.onrender.com',
+    'https://donboscofrontend.onrender.com',
+    'http://127.0.0.1:5173',  # Si usas Vite localmente
 ]
 
 STORAGES = {
