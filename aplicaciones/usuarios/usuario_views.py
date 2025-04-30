@@ -32,33 +32,38 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
-    def login(self, request):
-        print("Inicio del método login")
-        print("Datos recibidos:", request.data)
-        
-        serializer = LoginSerializer(data=request.data)
-        
+    def register(self, request):
+        serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
-            print("Errores de validación:", serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+        user = serializer.save()
+        return Response({
+            'user': serializer.data,
+            'message': 'Usuario registrado exitosamente'
+        }, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    def login(self, request):
+        serializer = LoginSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
         user = authenticate(
             username=serializer.validated_data['username'],
             password=serializer.validated_data['password']
         )
-        
+        print('user', user)
         if not user:
             return Response(
                 {'error': 'Credenciales inválidas'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-        
         if not user.is_active:
             return Response(
                 {'error': 'Cuenta desactivada'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
         token, created = Token.objects.get_or_create(user=user)
         Bitacora.objects.create(usuario=user, hora_entrada=timezone.now())
         
