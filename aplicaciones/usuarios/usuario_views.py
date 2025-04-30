@@ -35,9 +35,11 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     def login(self, request):
         print("Inicio del método login")
         print("Datos recibidos:", request.data)
-        serializer = LoginSerializer(request.data)
-        print("Datos recibidos:", request.data)
+        
+        serializer = LoginSerializer(data=request.data)
+        
         if not serializer.is_valid():
+            print("Errores de validación:", serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         user = authenticate(
