@@ -48,20 +48,22 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         )
         
         if not user:
+            print("Usuario no autenticado")
             return Response(
                 {'error': 'Credenciales inválidas'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
         
         if not user.is_active:
+            print("Usuario inactivo")
             return Response(
                 {'error': 'Cuenta desactivada'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
         token, created = Token.objects.get_or_create(user=user)
-        Bitacora.objects.create(usuario=user, hora_entrada=timezone.now())
-        
+        print("Token generado:", token.key)
+        print("Usuario autenticado:", user.username)
         return Response({
             'token': token.key,
             'user': UsuarioSerializer(user).data

@@ -66,6 +66,7 @@ AUTHENTICATION_BACKENDS = [
 
 CORS_ALLOWED_ORIGINS = [
   'http://localhost:5173',
+  'https://donboscofrontend.onrender.com',
 ]
 
 ROOT_URLCONF = 'core.urls'
