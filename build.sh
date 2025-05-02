@@ -1,13 +1,17 @@
 set -o errexit
 
+echo "Instalando dependencias..."
 pip install -r requirements.txt
 
+echo "Recopilando archivos estáticos..."
 python manage.py collectstatic --no-input
 
-python manage.py migrate
+echo "Ejecutando migraciones..."
+python manage.py migrate || { echo "Error al ejecutar las migraciones"; exit 1; }
 
 # Crear superusuario personalizado si no existe
 if [ "$CREATE_SUPERUSER" = "true" ]; then
+  echo "Creando superusuario..."
   python manage.py shell << END
 from django.contrib.auth import get_user_model
 from usuarios.models import Rol
