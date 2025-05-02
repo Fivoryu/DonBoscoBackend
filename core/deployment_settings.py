@@ -5,7 +5,10 @@ from .settings import BASE_DIR
 from dotenv import load_dotenv
 
 ALLOWED_HOSTS = [os.environ.get('RENDER_EXTERNAL_HOSTNAME', 'localhost')]
-CSRF_TRUSTED_ORIGINS = ['https://'+os.environ.get('RENDER_EXTERNAL_HOSTNAME')]
+CSRF_TRUSTED_ORIGINS = [
+    f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME')}",
+    'https://donboscofrontend.onrender.com',
+]
 
 DEBUG = False
 SECRET_KEY = os.environ.get('SECRET_KEY')
