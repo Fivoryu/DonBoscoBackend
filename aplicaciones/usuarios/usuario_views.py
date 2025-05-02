@@ -15,6 +15,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.utils import timezone
 from rest_framework.decorators import permission_classes
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all()
@@ -34,17 +37,17 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def login(self, request):
-        print("Entrando a login", flush=True)
+        logger.info("Entrando a login", flush=True)
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        print("Datos validados", flush=True)    
+        logger.info("Datos validados", flush=True)    
 
         user = authenticate(
             username=serializer.validated_data['username'],
             password=serializer.validated_data['password']
         )
-        print('user', user)
+        logger.debug('user', user)
         if not user:
             print("Usuario no autenticado")
             return Response(
