@@ -22,7 +22,7 @@ MIDDLEWARE = [
 ]
 CORS_ALLOWED_ORIGINS = [
     'https://donboscofrontend.onrender.com',
-    'http://127.0.0.1:5173',  # Si usas Vite localmente
+    'http://localhost:5173',  # Para desarrollo local
 ]
 
 REST_FRAMEWORK = {
