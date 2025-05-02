@@ -34,11 +34,11 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def login(self, request):
-        print("Entrando a login")
+        print("Entrando a login", flush=True)
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+        print("Datos validados", flush=True)    
 
         user = authenticate(
             username=serializer.validated_data['username'],
