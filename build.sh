@@ -6,6 +6,12 @@ pip install -r requirements.txt
 echo "Recopilando archivos estáticos..."
 python manage.py collectstatic --no-input
 
+if [ -z "$RENDER_EXTERNAL_HOSTNAME" ]; then
+  echo "La variable RENDER_EXTERNAL_HOSTNAME no está definida."
+else
+  echo "RENDER_EXTERNAL_HOSTNAME está definida como: $RENDER_EXTERNAL_HOSTNAME"
+fi
+
 echo "Ejecutando migraciones..."
 python manage.py migrate || { echo "Error al ejecutar las migraciones"; exit 1; }
 

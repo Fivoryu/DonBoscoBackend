@@ -13,23 +13,44 @@ from .serializer import (
 )
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.utils import timezone
-from rest_framework.decorators import permission_classes
 
-import logging
+from rest_framework.views import exception_handler
 
-logger = logging.getLogger(__name__)
+def custom_exception_handler(exc, context):
+    """
+    Este manejador de excepciones personalizadas se utiliza para
+    devolver respuestas de error más amigables y específicas.
+    """
+    response = exception_handler(exc, context)
+
+    if response is not None:
+        # Personaliza la respuesta de error aquí
+        response.data = {
+            'success': False,
+            'message': 'Ocurrió un error',
+            'details': response.data
+        }
+    return response
+
+
 
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
     permission_classes = [permissions.IsAdminUser]
 
-    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAdminUser])
     def register(self, request):
+        """
+        Permite a los administradores registrar nuevos usuarios.
+        """
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         user = serializer.save()
+
+        # Generar el token para el usuario
+        token, created = Token.objects.get_or_create(user=user)
         return Response({
             'user': serializer.data,
             'message': 'Usuario registrado exitosamente'
@@ -37,12 +58,13 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def login(self, request):
-        print("Entrando a login", flush=True)
+        """
+        Permite a los usuarios autenticarse en el sistema.
+        """
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        print("Datos validados", flush=True)    
-
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST) 
+        
         user = authenticate(
             username=serializer.validated_data['username'],
             password=serializer.validated_data['password']
@@ -70,6 +92,9 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def logout(self, request):
+        """
+        Permite a los usuarios cerrar sesión y registra la hora de salida en la bitácora.
+        """
         # Registrar hora de salida en bitácora
         bitacora = Bitacora.objects.filter(
             usuario=request.user,

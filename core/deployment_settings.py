@@ -2,12 +2,15 @@ import os
 import  dj_database_url
 from .settings import *
 from .settings import BASE_DIR
+from dotenv import load_dotenv
 
 ALLOWED_HOSTS = [os.environ.get('RENDER_EXTERNAL_HOSTNAME', 'localhost')]
 CSRF_TRUSTED_ORIGINS = ['https://'+os.environ.get('RENDER_EXTERNAL_HOSTNAME')]
 
 DEBUG = False
 SECRET_KEY = os.environ.get('SECRET_KEY')
+
+# load_dotenv()
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
@@ -34,6 +37,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'EXCEPTION_HANDLER': 'core.utils.custom_exception_handler',
 }
 
 AUTHENTICATION_BACKENDS = [
@@ -55,5 +59,7 @@ DATABASES = {
       conn_max_age=600
     )
 }
+
+# REACT_BASE_URL = os.getenv("REAC_BASE_URL", "http://localhost:5173")
 
 
