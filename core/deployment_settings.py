@@ -3,10 +3,10 @@ import  dj_database_url
 from .settings import *
 from .settings import BASE_DIR
 
-ALLOWED_HOSTS = [os.environ.get('RENDER_EXTERNAL_HOSTNAME')]
+ALLOWED_HOSTS = [os.environ.get('RENDER_EXTERNAL_HOSTNAME', 'localhost')]
 CSRF_TRUSTED_ORIGINS = ['https://'+os.environ.get('RENDER_EXTERNAL_HOSTNAME')]
 
-DEBUG = False
+DEBUG = True
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
 MIDDLEWARE = [
@@ -24,6 +24,8 @@ CORS_ALLOWED_ORIGINS = [
     'https://donboscofrontend.onrender.com',
     'http://localhost:5173',  # Para desarrollo local
 ]
+if 'RENDER_EXTERNAL_HOSTNAME' in os.environ:
+    CORS_ALLOWED_ORIGINS.append(f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}")
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
