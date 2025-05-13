@@ -1,34 +1,38 @@
 # core/deployment_settings.py
 
 import os
-from .settings import *          # Importa TODO lo de settings.py :contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}
-import dj_database_url          # Necesitas pip install dj-database-url
+import sys
+from pathlib import Path
+from .settings import *  # hereda configuración base
 
-# 1. SECRET_KEY y DEBUG por entorno
+# 1. Añadir carpeta de aplicaciones al PYTHONPATH
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE_DIR / 'aplicaciones'))
+
+# 2. Configuración de entorno
 SECRET_KEY = os.environ['SECRET_KEY']
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
-
-# 2. Hosts permitidos
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')  
-# Ejemplo: ALLOWED_HOSTS=tu-app.onrender.com,localhost
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
 
 # 3. Base de datos desde DATABASE_URL
+import dj_database_url
 DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL'),
         conn_max_age=600,
-        ssl_require=True
+        ssl_require=not DEBUG
     )
 }
 
-# 4. WhiteNoise para estáticos
+# 4. WhiteNoise para servir estáticos
 MIDDLEWARE.insert(
     MIDDLEWARE.index('django.middleware.security.SecurityMiddleware') + 1,
     'whitenoise.middleware.WhiteNoiseMiddleware'
 )
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# 5. CORS: añade tu dominio de frontend en Render
+# 5. CORS: solo origen de frontend
 CORS_ALLOWED_ORIGINS = [
     os.environ.get('FRONTEND_URL', 'http://localhost:5173'),
 ]
