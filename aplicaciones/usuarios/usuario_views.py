@@ -3,88 +3,79 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.authtoken.models import Token
-from .models import Usuario, Rol, Notificacion, Bitacora
+from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin
+from django.utils.crypto import get_random_string
+from django.conf import settings
+from django.core.mail import send_mail
+from random import randint
+from rest_framework.views import APIView
 from .serializer import (
+
     UsuarioSerializer,
     RolSerializer,
     NotificacionSerializer,
     BitacoraSerializer,
-    LoginSerializer
+    LoginSerializer,
+    SuperAdminSerializer,
 )
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.utils import timezone
+from rest_framework.decorators import permission_classes
+from .utils import registrar_bitacora
 
-from rest_framework.views import exception_handler
-
-def custom_exception_handler(exc, context):
-    """
-    Este manejador de excepciones personalizadas se utiliza para
-    devolver respuestas de error más amigables y específicas.
-    """
-    response = exception_handler(exc, context)
-
-    if response is not None:
-        # Personaliza la respuesta de error aquí
-        response.data = {
-            'success': False,
-            'message': 'Ocurrió un error',
-            'details': response.data
-        }
-    return response
-
-
-
+@permission_classes([AllowAny])
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
     permission_classes = [permissions.IsAdminUser]
 
-    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAdminUser])
     def register(self, request):
-        """
-        Permite a los administradores registrar nuevos usuarios.
-        """
+        print("inteto de registro")
         serializer = self.get_serializer(data=request.data)
+        print("Datos iniciales enviados al serializador:", serializer.initial_data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         user = serializer.save()
-
-        # Generar el token para el usuario
-        token, created = Token.objects.get_or_create(user=user)
         return Response({
             'user': serializer.data,
             'message': 'Usuario registrado exitosamente'
         }, status=status.HTTP_201_CREATED)
 
-    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+
+
+
+    @action(detail=False, methods=['POST'], permission_classes=[AllowAny])
     def login(self, request):
-        """
-        Permite a los usuarios autenticarse en el sistema.
-        """
+        print("Entrando a login")
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST) 
-        
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
         user = authenticate(
             username=serializer.validated_data['username'],
             password=serializer.validated_data['password']
         )
-        print('user', user)
+
+        print(user.username)
+
         if not user:
-            print("Usuario no autenticado")
-            return Response(
-                {'error': 'Credenciales inválidas'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+            return Response({'error': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
         if not user.is_active:
-            print("Usuario inactivo")
-            return Response(
-                {'error': 'Cuenta desactivada'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        token, created = Token.objects.get_or_create(user=user)
-        print("Token generado:", token.key)
-        print("Usuario autenticado:", user.username)
+            return Response({'error': 'Cuenta desactivada'}, status=status.HTTP_403_FORBIDDEN)
+
+        token, _ = Token.objects.get_or_create(user=user)
+        ip = get_client_ip(request)
+
+        print(ip)
+
+        registrar_bitacora(
+            usuario=user,
+            ip=ip,
+            tabla_afectada='usuario',
+            accion='crear',
+            descripcion='Inicio de sesión exitoso'
+        )
+
         return Response({
             'token': token.key,
             'user': UsuarioSerializer(user).data
@@ -92,22 +83,140 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def logout(self, request):
-        """
-        Permite a los usuarios cerrar sesión y registra la hora de salida en la bitácora.
-        """
-        # Registrar hora de salida en bitácora
         bitacora = Bitacora.objects.filter(
             usuario=request.user,
             hora_salida__isnull=True
         ).last()
-        
+
         if bitacora:
             bitacora.hora_salida = timezone.now()
+            bitacora.descripcion = "Cierre de sesión"
             bitacora.save()
-        
+        else:
+        # Opción: registrar nuevo solo si no se encontró uno anterior
+            ip = get_client_ip(request)
+            Bitacora.objects.create(
+                usuario=request.user,
+                hora_entrada=timezone.now(),
+                hora_salida=timezone.now(),
+                ip=ip,
+                tabla="usuario",
+                accion="ver",
+                descripcion="Cierre de sesión sin entrada previa"
+            )
+
         request.user.auth_token.delete()
         logout(request)
+
         return Response({'message': 'Sesión cerrada correctamente'})
+    
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def cantidad(self, request):
+        cantidad = Usuario.objects.count()
+
+        return Response({'cantidad_usuarios': cantidad})
+        
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def perfil(self, request):
+        serializer = UsuarioSerializer(request.user)
+        return Response(serializer.data)
+
+
+
+    @action(detail=False, methods=['get'], url_path='listar-usuarios')
+    def listar_usuarios(self, request):
+    # Aquí NO uses self.get_object()
+        usuarios = Usuario.objects.all()
+        serializer = UsuarioSerializer(usuarios, many=True)
+        registrar_bitacora(
+        usuario=request.user,
+        ip=get_client_ip(request),
+        tabla='usuario',
+        accion='ver',
+        descripcion='Listó los usuarios'
+    )
+        return Response(serializer.data)
+   
+    @action(detail=True, methods=['put'], permission_classes=[permissions.IsAdminUser])
+    def editar_usuario(self, request, pk=None):
+        try:
+            usuario = Usuario.objects.get(pk=pk)
+        except Usuario.DoesNotExist:
+            return Response({'error': 'Usuario no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.get_serializer(usuario, data=request.data, partial=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # Guardar cambios normales primero (sin aplicar password)
+        usuario = serializer.save()
+
+    # Si se quiere cambiar la contraseña
+        nueva_contraseña = request.data.get("password")
+        if nueva_contraseña:
+            usuario.set_password(nueva_contraseña)
+            usuario.save()
+
+        registrar_bitacora(
+            usuario=request.user,
+            ip=get_client_ip(request),
+            tabla='usuario',
+            accion='editar',
+            descripcion=f'Editó el usuario con ID {pk}'
+        )
+
+        return Response({
+            'usuario': serializer.data,
+            'message': 'Usuario actualizado exitosamente'
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['delete'], permission_classes=[permissions.IsAdminUser])
+    def eliminar_usuario(self, request, pk=None):
+        try:
+            usuario = Usuario.objects.get(pk=pk)
+        except Usuario.DoesNotExist:
+            return Response({'error': 'Usuario no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+    
+        usuario.delete()
+        registrar_bitacora(
+        usuario=request.user,
+        ip=get_client_ip(request),
+        tabla='usuario',
+        accion='eliminar',
+        descripcion=f'Eliminó un usuario  '
+    )
+    
+        return Response({'message': 'Usuario eliminado correctamente'}, status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'], url_path='listar-superadmins', permission_classes=[permissions.IsAdminUser])
+    def listar_superadmins(self, request):
+        queryset = SuperAdmin.objects.select_related('usuario').all()
+        serializer = SuperAdminSerializer(queryset, many=True)
+        
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], url_path='listar-admins', permission_classes=[permissions.IsAdminUser])
+    def listar_admins(self, request):
+        """
+        Lista todos los administradores registrados en el sistema.
+        """
+        # Filtrar usuarios que tienen el rol de administrador
+        queryset = Usuario.objects.filter(rol__nombre='Admin')  # Ajusta el filtro según tu modelo de roles
+        serializer = UsuarioSerializer(queryset, many=True)
+        
+        # Registrar la acción en la bitácora
+        registrar_bitacora(
+            usuario=request.user,
+            ip=get_client_ip(request),
+            tabla_afectada='usuario',
+            accion='ver',
+            descripcion='Listó los administradores'
+        )
+        
+        return Response(serializer.data)
+
+    
 
 class RolViewSet(viewsets.ModelViewSet):
     queryset = Rol.objects.all()
@@ -134,3 +243,12 @@ class BitacoraViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return Bitacora.objects.all().order_by('-hora_entrada')
+
+
+def get_client_ip(request):
+        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get("REMOTE_ADDR")
+        return ip

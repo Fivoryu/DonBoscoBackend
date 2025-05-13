@@ -1,9 +1,9 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-from academico.models import MateriaCurso
-from personal.models import Profesor
-from estudiantes.models import Estudiante
-from calendario.models import Periodo
+from aplicaciones.academico.models import MateriaCurso
+from aplicaciones.personal.models import Profesor
+from aplicaciones.estudiantes.models import Estudiante
+from aplicaciones.calendario.models import Periodo
 
 class DimensionEvaluacion(models.Model):
     TIPOS_DIMENSION = [

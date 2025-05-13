@@ -1,6 +1,6 @@
 from django.db import models
-from estudiantes.models import Estudiante, Tutor
-from academico.models import Clase
+from aplicaciones.estudiantes.models import Estudiante, Tutor
+from aplicaciones.academico.models import Clase
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 class Comportamiento(models.Model):

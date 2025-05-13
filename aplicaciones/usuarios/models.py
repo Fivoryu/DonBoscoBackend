@@ -51,11 +51,12 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     nombre = models.CharField(max_length=100)
     apellido = models.CharField(max_length=100)
     email = models.EmailField(max_length=100, unique=True)
-    edad = models.IntegerField(blank=True, null=True)
+    fecha_nacimiento = models.DateField(blank=True, null=True)  # Reemplazo de edad
     username = models.CharField(max_length=50, unique=True)
     estado = models.BooleanField(default=True)
     rol = models.ForeignKey(Rol, on_delete=models.PROTECT)
     telefono = models.CharField(max_length=20, blank=True, null=True)
+    password_reset_pin = models.CharField(max_length=6, blank=True, null=True)
     
     # Campos requeridos para el modelo de usuario personalizado
     is_staff = models.BooleanField(default=False)
@@ -65,7 +66,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     objects = UsuarioManager()
 
     USERNAME_FIELD = 'username'
-    REQUIRED_FIELDS = ['ci', 'email', 'nombre', 'apellido']
+    REQUIRED_FIELDS = ['ci', 'email', 'nombre', 'apellido', 'fecha_nacimiento']  # Actualización de campos requeridos
 
     class Meta:
         verbose_name = 'Usuario'
@@ -105,10 +106,11 @@ class SuperAdmin(models.Model):
         primary_key=True,
         related_name='superadmin'
     )
+    
 
     class Meta:
         verbose_name = 'Super Administrador'
-        verbose_name_plural = 'Super Administradores'
+        verbose_name_plural = 'Super Administraadores'
         db_table = 'superadmin'
 
     def __str__(self):
@@ -132,24 +134,64 @@ class Admin(models.Model):
     def __str__(self):
         return f"{self.usuario} - {self.puesto}"
 # Create your models here.
+from django.db import models
+from django.conf import settings
+
 class Bitacora(models.Model):
+    ACCIONES = [
+        ('crear', 'Crear'),
+        ('editar', 'Editar'),
+        ('eliminar', 'Eliminar'),
+        ('ver', 'Ver'),
+        ('otro', 'Otro'),
+    ]
+
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        verbose_name='Usuario'
+        verbose_name='Usuario relacionado'
     )
-    hora_entrada = models.DateTimeField(verbose_name='Hora de entrada')
+    hora_entrada = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Hora de entrada'
+    )
     hora_salida = models.DateTimeField(
-        verbose_name='Hora de salida',
+        blank=True,
+        null=True,
+        verbose_name='Hora de salida'
+    )
+    ip = models.GenericIPAddressField(
+        blank=True,
+        null=True,
+        verbose_name="Dirección IP"
+    )
+    tabla_afectada = models.CharField(
+        max_length=100,
+        verbose_name='Tabla afectada',
         blank=True,
         null=True
+    )
+    accion = models.CharField(
+        max_length=10,
+        choices=ACCIONES,
+        verbose_name='Acción realizada',
+        default='otro'  # Valor predeterminado
+    )
+    descripcion = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='Descripción de la acción',
+    )
+    fecha = models.DateTimeField(
+        verbose_name='Fecha de registro',
+        default=timezone.now
     )
 
     class Meta:
         verbose_name = 'Bitácora de sesión'
         verbose_name_plural = 'Bitácoras de sesión'
         db_table = 'bitacora_sesion'
-        ordering = ['-hora_entrada']
+        ordering = ['-fecha']
 
     def __str__(self):
-        return f"{self.usuario} entró {self.hora_entrada:%Y-%m-%d %H:%M:%S}"
+        return f"{self.usuario} realizó {self.accion} el {self.fecha:%Y-%m-%d %H:%M:%S}"

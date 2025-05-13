@@ -4,8 +4,12 @@ import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+FRONTEND_URL = "http://localhost:5173"
 
-sys.path.insert(0, str(BASE_DIR / 'aplicaciones'))
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'no-reply@donbosco.edu'
+
+# sys.path.insert(0, str(BASE_DIR / 'aplicaciones'))
 
 
 # Quick-start development settings - unsuitable for production
@@ -68,8 +72,8 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    'https://donboscofrontend.onrender.com',
-    'http://localhost:5173',  # Para desarrollo local
+    #'https://donboscofrontend.onrender.com',
+    'http://localhost:5173',  # Para desarrollo local http://localhost:5173
 ]
 
 ROOT_URLCONF = 'core.urls'

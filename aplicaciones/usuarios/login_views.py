@@ -3,7 +3,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
-from .models import Usuario
+from aplicaciones.usuarios.models import Usuario
 from django.contrib.auth import authenticate
 from . import serializer
 

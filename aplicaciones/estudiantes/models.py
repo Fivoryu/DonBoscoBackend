@@ -1,6 +1,6 @@
 from django.db import models
-from usuarios.models import Usuario
-from academico.models import Curso
+from aplicaciones.usuarios.models import Usuario
+from aplicaciones.academico.models import Curso
 
 PARENTESCOS = [
     ('PAD', 'Padre'),

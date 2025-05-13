@@ -1,5 +1,5 @@
 from django.db import models
-from institucion.models import UnidadEducativa, Aula  # Asumiendo que existe esta app
+from aplicaciones.institucion.models import UnidadEducativa, Aula  # Asumiendo que existe esta app
 
 class Clase(models.Model):
     curso = models.ForeignKey(

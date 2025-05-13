@@ -1,6 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator
-
+from aplicaciones.usuarios.models import Admin, SuperAdmin
 class Colegio(models.Model):
     nombre = models.CharField(max_length=100)
     logo = models.ImageField(upload_to='colegios/logos/', null=True, blank=True)
@@ -8,6 +8,13 @@ class Colegio(models.Model):
     telefono = models.CharField(max_length=20)
     email = models.EmailField(blank=True, null=True)
     sitio_web = models.URLField(blank=True, null=True)
+    super_admin_fk= models.ForeignKey(
+        SuperAdmin,
+        on_delete=models.SET_NULL,
+        related_name='colegios',
+        null=True,
+        blank=True
+    )
     
     class Meta:
         verbose_name = 'Colegio'
@@ -23,6 +30,15 @@ class Modulo(models.Model):
         validators=[MinValueValidator(1)]
     )
     descripcion = models.TextField(blank=True, null=True)
+    colegio_fk = models.ForeignKey(
+        Colegio,
+        on_delete=models.SET_NULL,
+        related_name='modulos',
+        null=True,
+        blank=True
+    )
+
+    
     
     class Meta:
         verbose_name = 'Módulo'
@@ -45,7 +61,9 @@ class Aula(models.Model):
     
     modulo = models.ForeignKey(
         Modulo,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='aulas'
     )
     nombre = models.CharField(max_length=50)
@@ -53,6 +71,7 @@ class Aula(models.Model):
         validators=[MinValueValidator(1)]
     )
     estado = models.BooleanField(default=True)
+    
     tipo = models.CharField(
         max_length=3,
         choices=TIPOS_AULA,
@@ -78,11 +97,7 @@ class UnidadEducativa(models.Model):
         ('COMPLETO', 'Jornada Completa'),
     ]
     
-    colegio = models.ForeignKey(
-        Colegio,
-        on_delete=models.CASCADE,
-        related_name='unidades_educativas'
-    )
+    
     codigo_sie = models.CharField(
         max_length=50,
         unique=True,
@@ -92,8 +107,24 @@ class UnidadEducativa(models.Model):
         max_length=10,
         choices=TURNOS
     )
+    nombre= models.CharField(max_length=100,blank=True, null=True)
     direccion = models.TextField(blank=True, null=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)
+    nivel = models.CharField(max_length=50,blank=True, null=True)
+    admin_fk = models.ForeignKey(
+        Admin,
+        on_delete=models.SET_NULL,
+        related_name='unidades_educativas',
+        null=True,
+        blank=True
+    )
+    colegio = models.ForeignKey(
+        Colegio,
+        on_delete=models.SET_NULL,
+        related_name='unidades_educativas',
+        null=True,
+        blank=True
+    )
     
     class Meta:
         verbose_name = 'Unidad Educativa'

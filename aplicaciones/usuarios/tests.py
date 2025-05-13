@@ -1,6 +1,6 @@
 from django.test import TestCase, Client
 from django.urls import reverse
-from usuarios.models import Usuario, Rol
+from .models import Usuario, Rol
 import json
 
 class LoginTests(TestCase):
