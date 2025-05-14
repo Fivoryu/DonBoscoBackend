@@ -26,7 +26,7 @@ User = get_user_model()
 
 # Crear rol de SuperAdmin si no existe
 rol_superadmin, created = Rol.objects.get_or_create(
-    nombre='SuperAdmin',
+    nombre='superadmin',
     defaults={'descripcion': 'Rol de superadministrador del sistema'}
 )
 

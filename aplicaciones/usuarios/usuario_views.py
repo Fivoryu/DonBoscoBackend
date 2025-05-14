@@ -100,7 +100,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
                 hora_entrada=timezone.now(),
                 hora_salida=timezone.now(),
                 ip=ip,
-                tabla="usuario",
+                tabla_afectada="usuario",
                 accion="ver",
                 descripcion="Cierre de sesión sin entrada previa"
             )
@@ -132,7 +132,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         registrar_bitacora(
         usuario=request.user,
         ip=get_client_ip(request),
-        tabla='usuario',
+        tabla_afectada='usuario',
         accion='ver',
         descripcion='Listó los usuarios'
     )
@@ -161,7 +161,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         registrar_bitacora(
             usuario=request.user,
             ip=get_client_ip(request),
-            tabla='usuario',
+            tabla_afectada='usuario',
             accion='editar',
             descripcion=f'Editó el usuario con ID {pk}'
         )
@@ -182,7 +182,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         registrar_bitacora(
         usuario=request.user,
         ip=get_client_ip(request),
-        tabla='usuario',
+        tabla_afectada='usuario',
         accion='eliminar',
         descripcion=f'Eliminó un usuario  '
     )
