@@ -7,7 +7,6 @@ from .settings import *  # hereda configuración base
 
 # 1. Añadir carpeta de aplicaciones al PYTHONPATH
 BASE_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(BASE_DIR / 'aplicaciones'))
 
 # 2. Configuración de entorno
 SECRET_KEY = os.environ['SECRET_KEY']

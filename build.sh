@@ -20,7 +20,7 @@ if [ "$CREATE_SUPERUSER" = "true" ]; then
   echo "Creando superusuario..."
   python manage.py shell << END
 from django.contrib.auth import get_user_model
-from usuarios.models import Rol
+from aplicaciones.usuarios.models import Rol
 
 User = get_user_model()
 

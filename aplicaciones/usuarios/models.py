@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils import timezone
 from django.conf import settings
+from django.apps import AppConfig
 
 class Rol(models.Model):
     nombre = models.CharField(max_length=50, unique=True)
@@ -44,6 +45,10 @@ class UsuarioManager(BaseUserManager):
         extra_fields.setdefault('rol', rol)
         
         return self.create_user(ci, email, nombre, apellido, password, **extra_fields)
+    
+class UsuariosConfig(AppConfig):
+    name = 'aplicaciones.usuarios'
+    label = 'usuarios'
 
 class Usuario(AbstractBaseUser, PermissionsMixin):
     ci = models.CharField(max_length=20, unique=True)

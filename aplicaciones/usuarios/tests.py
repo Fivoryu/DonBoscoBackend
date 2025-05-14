@@ -55,6 +55,10 @@ usuario_superadmin = Usuario.objects.create_superuser(
     token='568df9a67fasdfga78asdgfdg',  # Token de autenticación
 )
 
+Superuser_username = Test123
+Superuser_email = test@gmail.com
+Superuser_password = Test321.123
+
 print(f"Superusuario creado: {usuario_superadmin.get_full_name()}")
 
 """
