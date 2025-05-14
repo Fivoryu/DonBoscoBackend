@@ -4,11 +4,10 @@ from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.authtoken.models import Token
 from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin
-from django.utils.crypto import get_random_string
-from django.conf import settings
-from django.core.mail import send_mail
-from random import randint
-from rest_framework.views import APIView
+
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import User as UserModel
+
 from .serializer import (
 
     UsuarioSerializer,
@@ -124,18 +123,33 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
 
 
-    @action(detail=False, methods=['get'], url_path='listar-usuarios')
+    @action(
+        detail=False,
+        methods=['get'],
+        url_path='listar-usuarios',
+        permission_classes=[IsAuthenticated]    # ← obligamos login aquí
+    )
+    @action(
+        detail=False,
+        methods=['get'],
+        url_path='listar-usuarios',
+        permission_classes=[IsAuthenticated]  # refuerza login en este action
+    )
     def listar_usuarios(self, request):
-    # Aquí NO uses self.get_object()
         usuarios = Usuario.objects.all()
         serializer = UsuarioSerializer(usuarios, many=True)
-        registrar_bitacora(
-        usuario=request.user,
-        ip=get_client_ip(request),
-        tabla_afectada='usuario',
-        accion='ver',
-        descripcion='Listó los usuarios'
-    )
+
+        # Solo registra bitácora si es un Usuario real y autenticado
+        user = request.user
+        if isinstance(user, UserModel) and user.is_authenticated:
+            registrar_bitacora(
+                usuario=user,
+                ip=get_client_ip(request),
+                tabla_afectada='usuario',
+                accion='ver',
+                descripcion='Listó los usuarios'
+            )
+
         return Response(serializer.data)
    
     @action(detail=True, methods=['put'], permission_classes=[permissions.IsAdminUser])
