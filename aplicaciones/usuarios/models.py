@@ -62,6 +62,18 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     rol = models.ForeignKey(Rol, on_delete=models.PROTECT)
     telefono = models.CharField(max_length=20, blank=True, null=True)
     password_reset_pin = models.CharField(max_length=6, blank=True, null=True)
+
+    SEXO_MASCULINO = 'M'
+    SEXO_FEMENINO = 'F'
+    SEXO_CHOICES = [
+        (SEXO_MASCULINO, 'Masculino'),
+        (SEXO_FEMENINO, 'Femenino'),
+    ]
+    sexo = models.CharField(
+        max_length=1,            # CORRECCIÓN: max_length en lugar de max_lenght
+        choices=SEXO_CHOICES,    # sólo ‘M’ o ‘F’
+        default=SEXO_MASCULINO,  # opcional: valor por defecto
+    )
     
     # Campos requeridos para el modelo de usuario personalizado
     is_staff = models.BooleanField(default=False)
