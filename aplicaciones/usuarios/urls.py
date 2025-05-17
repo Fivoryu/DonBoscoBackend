@@ -28,5 +28,6 @@ urlpatterns = [
         path('listar-usuarios/', UsuarioViewSet.as_view({'get': 'listar_usuarios'}), name='listar-usuarios'),
         path('listar-admins/', UsuarioViewSet.as_view({'get': 'listar_admins'}), name='listar-admins'),
         path('listar-superadmins/', UsuarioViewSet.as_view({'get': 'listar_superadmins'}), name='listar-superadmins'),
+        path('cantidad-por-rol/', UsuarioViewSet.as_view({'get': 'cantidad_por_rol'}), name='cantidad-por-rol'),
     ])),
 ]

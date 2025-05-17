@@ -7,6 +7,7 @@ from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User as UserModel
+from django.db.models import Count # Importar Count para contar usuarios
 
 from .serializer import (
 
@@ -115,20 +116,55 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         cantidad = Usuario.objects.count()
 
         return Response({'cantidad_usuarios': cantidad})
-        
-    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
-    def perfil(self, request):
-        serializer = UsuarioSerializer(request.user)
-        return Response(serializer.data)
 
-
-
+    # Cantidad de usuarios por rol
     @action(
-        detail=False,
+        detail=False, 
         methods=['get'],
-        url_path='listar-usuarios',
-        permission_classes=[IsAuthenticated]    # ← obligamos login aquí
+        url_path='cantidad-por-rol',
+        permission_classes=[IsAuthenticated]     
     )
+
+    def cantidad_por_rol(self, request):
+        """
+        Devuelve un diccionario con la cantidad de usuarios por rol.
+        """
+        qs = Usuario.objects.values('rol__nombre').annotate(cantidad=Count('id'))
+        data = {
+            item['rol__nombre']: item['cantidad']
+            for item in qs
+        }
+
+        registrar_bitacora (
+            usuario=request.user,
+            ip=get_client_ip(request),
+            tabla_afectada='usuario',
+            accion='ver',
+            descripcion='Consultó la cantidad de usuarios por rol'
+        )
+
+        return Response(data, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])   
+    def perfil(self, request):
+        """
+        Retorna los datos del usuario autenticado.
+        """
+        user = request.user
+        # Registro en bitácora (opcional)
+        registrar_bitacora(
+            usuario=user,
+            ip=get_client_ip(request),
+            tabla_afectada='usuario',
+            accion='ver',
+            descripcion='Consultó su perfil'
+        )
+
+        # Uso self.get_serializer para respetar get_serializer_class() si lo tienes
+        serializer = self.get_serializer(user, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
     @action(
         detail=False,
         methods=['get'],
