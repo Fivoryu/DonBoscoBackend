@@ -11,6 +11,11 @@ router.register(r'unidades-educativas', views.UnidadEducativaViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+]
+
+"""
+urlpatterns = [
+    path('', include(router.urls)),
     path('cantidad-colegios/', ColegioViewSet.as_view({'get': 'obtener_cantidad_colegios'}), name='cantidad-colegios'),
     path('cantidad-unidades-educativas/', UnidadEducativaViewSet.as_view({'get': 'obtener_cantidad_unidades_educativas'}), name='cantidad-unidades-educativas'),
     path('editar-colegio/<int:pk>/', ColegioViewSet.as_view({'put': 'editar_colegio'}), name='editar-colegio'),
@@ -31,3 +36,5 @@ urlpatterns = [
     path('editar-aula/<int:pk>/', AulaViewSet.as_view({'put': 'editar_aula'}), name='editar-aula'),
     path('eliminar-aula/<int:pk>/', AulaViewSet.as_view({'delete': 'eliminar_aula'}), name='eliminar-aula'),
 ]
+
+"""

@@ -75,10 +75,13 @@ AUTHENTICATION_BACKENDS = [
 CORS_ALLOWED_ORIGINS = [
     #'https://donboscofrontend.onrender.com',
     'http://localhost:5173',  # Para desarrollo local http://localhost:5173
+    "http://127.0.0.1:5173",
 ]
 
+CORS_ALLOW_CREDENTIALS = True 
+
 # Indica que el HTTPS se termina en el proxy (Render)
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Cookies solo sobre HTTPS
 CSRF_COOKIE_SECURE     = True
@@ -87,6 +90,11 @@ SESSION_COOKIE_SECURE  = True
 # Permite enviar la cookie en solicitudes cross-site
 CSRF_COOKIE_SAMESITE     = "None"
 SESSION_COOKIE_SAMESITE  = "None"
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 
 
 ROOT_URLCONF = 'core.urls'
