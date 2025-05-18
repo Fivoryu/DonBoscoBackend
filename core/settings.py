@@ -77,6 +77,18 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',  # Para desarrollo local http://localhost:5173
 ]
 
+# Indica que el HTTPS se termina en el proxy (Render)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Cookies solo sobre HTTPS
+CSRF_COOKIE_SECURE     = True
+SESSION_COOKIE_SECURE  = True
+
+# Permite enviar la cookie en solicitudes cross-site
+CSRF_COOKIE_SAMESITE     = "None"
+SESSION_COOKIE_SAMESITE  = "None"
+
+
 ROOT_URLCONF = 'core.urls'
 
 TEMPLATES = [
