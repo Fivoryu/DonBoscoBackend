@@ -71,8 +71,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         if not user.is_active:
             return Response({'error': 'Cuenta desactivada'}, status=status.HTTP_403_FORBIDDEN)
         
-        Token.objects.filter(user=user).delete()  # Eliminar token anterior si existe
-        token, _ = Token.objects.create(user=user)
+        token, _ = Token.objects.get_or_create(user=user)
         ip = get_client_ip(request)
 
         print(ip)
@@ -154,7 +153,14 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
     
-    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])   
+    @csrf_exempt
+    @action(
+      detail=False,
+      methods=['get'],
+      url_path='perfil',
+      authentication_classes=[],      # quitas SessionAuthentication y TokenAuthentication aquí
+      permission_classes=[AllowAny]
+    )
     def perfil(self, request):
         """
         Retorna los datos del usuario autenticado.
