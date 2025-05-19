@@ -8,6 +8,7 @@ from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User as UserModel
 from django.db.models import Count # Importar Count para contar usuarios
+from django.views.decorators.csrf import csrf_exempt
 
 from .serializer import (
 
@@ -44,7 +45,14 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
 
 
-    @action(detail=False, methods=['POST'], permission_classes=[AllowAny])
+    @csrf_exempt
+    @action(
+      detail=False,
+      methods=['post'],
+      url_path='login',
+      authentication_classes=[],      # quitas SessionAuthentication y TokenAuthentication aquí
+      permission_classes=[AllowAny]
+    )
     def login(self, request):
         print("Entrando a login")
         serializer = LoginSerializer(data=request.data)
