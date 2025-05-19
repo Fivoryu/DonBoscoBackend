@@ -15,7 +15,10 @@ router.register(r'notificaciones', NotificacionViewSet, basename='notificacion')
 router.register(r'bitacoras', BitacoraViewSet, basename='bitacora')
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('auth/', include(router.urls)),
+]
+
+"""
     path('auth/', include([
         path('login/', UsuarioViewSet.as_view({'post': 'login'}), name='login'),
         path('logout/', UsuarioViewSet.as_view({'post': 'logout'}), name='logout'),
@@ -29,5 +32,6 @@ urlpatterns = [
         path('listar-admins/', UsuarioViewSet.as_view({'get': 'listar_admins'}), name='listar-admins'),
         path('listar-superadmins/', UsuarioViewSet.as_view({'get': 'listar_superadmins'}), name='listar-superadmins'),
         path('cantidad-por-rol/', UsuarioViewSet.as_view({'get': 'cantidad_por_rol'}), name='cantidad-por-rol'),
-    ])),
-]
+    
+    ]))
+    """

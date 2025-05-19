@@ -78,7 +78,7 @@ AUTHENTICATION_BACKENDS = [
 CORS_ALLOWED_ORIGINS = [
     #'https://donboscofrontend.onrender.com',
     'http://localhost:5173',  # Para desarrollo local http://localhost:5173
-    "http://127.0.0.1:5173",
+    "http://192.168.0.11:5173",
 ]
 
 CORS_ALLOW_CREDENTIALS = True 

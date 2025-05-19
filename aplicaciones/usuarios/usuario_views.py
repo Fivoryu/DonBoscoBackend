@@ -1,11 +1,13 @@
 from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, permission_classes
 from rest_framework.response import Response
-from django.contrib.auth import authenticate, login, logout
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.authentication import TokenAuthentication
+
+from django.contrib.auth import authenticate, logout
 from rest_framework.authtoken.models import Token
 from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin
 
-from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User as UserModel
 from django.db.models import Count # Importar Count para contar usuarios
 from django.views.decorators.csrf import csrf_exempt
@@ -19,16 +21,15 @@ from .serializer import (
     LoginSerializer,
     SuperAdminSerializer,
 )
-from rest_framework.permissions import AllowAny, IsAuthenticated
+
 from django.utils import timezone
-from rest_framework.decorators import permission_classes
 from .utils import registrar_bitacora
 
-@permission_classes([AllowAny])
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
-    permission_classes = [permissions.IsAdminUser]
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def register(self, request):
         print("inteto de registro")
@@ -42,40 +43,36 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             'message': 'Usuario registrado exitosamente'
         }, status=status.HTTP_201_CREATED)
 
-
-
-
-    @csrf_exempt
     @action(
-      detail=False,
-      methods=['post'],
-      url_path='login',
-      authentication_classes=[],      # quitas SessionAuthentication y TokenAuthentication aquí
-      permission_classes=[AllowAny]
+        detail=False,
+        methods=['post'],
+        permission_classes=[AllowAny],
+        url_path='login',
     )
     def login(self, request):
         print("Entrando a login")
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            print("Errores en serializer:", serializer.errors)
+            return Response(serializer.errors, status=400)
 
-        user = authenticate(
-            username=serializer.validated_data['username'],
-            password=serializer.validated_data['password']
-        )
+        username = serializer.validated_data['username']
+        password = serializer.validated_data['password']
+        print(f"Login attempt: {username=}")
 
-        print(user.username)
+        user = authenticate(username=username, password=password)
+        print(f"User auth result: {user}")
 
-        if not user:
+        if user is None:
             return Response({'error': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
+
         if not user.is_active:
             return Response({'error': 'Cuenta desactivada'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         token, _ = Token.objects.get_or_create(user=user)
+
+        # Registrar bitácora si tienes la función
         ip = get_client_ip(request)
-
-        print(ip)
-
         registrar_bitacora(
             usuario=user,
             ip=ip,
@@ -84,12 +81,14 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             descripcion='Inicio de sesión exitoso'
         )
 
+        user_data = UsuarioSerializer(user, context={'request': request}).data
+
         return Response({
             'token': token.key,
-            'user': UsuarioSerializer(user).data
+            'user': user_data
         })
 
-    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def logout(self, request):
         bitacora = Bitacora.objects.filter(
             usuario=request.user,
@@ -119,7 +118,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         return Response({'message': 'Sesión cerrada correctamente'})
     
     
-    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny],)
     def cantidad(self, request):
         cantidad = Usuario.objects.count()
 
@@ -153,20 +152,13 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
     
-    @csrf_exempt
-    @action(
-      detail=False,
-      methods=['get'],
-      url_path='perfil',
-      authentication_classes=[],      # quitas SessionAuthentication y TokenAuthentication aquí
-      permission_classes=[AllowAny]
-    )
+    @action(detail=False, methods=['get'], url_path='perfil')
     def perfil(self, request):
-        """
-        Retorna los datos del usuario autenticado.
-        """
+        # Aquí request.user siempre es un Usuario autenticado
+        print("Entrando a perfil")
         user = request.user
-        # Registro en bitácora (opcional)
+        if not user or not user.is_authenticated:
+            return Response({"detail": "No autenticado"}, status=401)
         registrar_bitacora(
             usuario=user,
             ip=get_client_ip(request),
@@ -174,10 +166,8 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             accion='ver',
             descripcion='Consultó su perfil'
         )
-
-        # Uso self.get_serializer para respetar get_serializer_class() si lo tienes
-        serializer = self.get_serializer(user, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        serializer = self.get_serializer(request.user, context={'request': request})
+        return Response(serializer.data, status=200)
 
 
     @action(
