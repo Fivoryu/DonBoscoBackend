@@ -62,8 +62,9 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
         if not user.is_active:
             return Response({'error': 'Cuenta desactivada'}, status=status.HTTP_403_FORBIDDEN)
-
-        token, _ = Token.objects.get_or_create(user=user)
+        
+        Token.objects.filter(user=user).delete()  # Eliminar token anterior si existe
+        token, _ = Token.objects.create(user=user)
         ip = get_client_ip(request)
 
         print(ip)
