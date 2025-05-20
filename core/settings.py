@@ -21,7 +21,11 @@ SECRET_KEY = 'django-insecure-s6o4hp@#nj4ugiwki!zxx&45iyk1pm8^!##e$us%e9_d9-)9y=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '192.168.0.11',
+]
 
 
 # Application definition
@@ -77,7 +81,8 @@ AUTHENTICATION_BACKENDS = [
 
 CORS_ALLOWED_ORIGINS = [
     #'https://donboscofrontend.onrender.com',
-    'http://localhost:5173',  # Para desarrollo local http://localhost:5173
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
     "http://192.168.0.11:5173",
 ]
 
