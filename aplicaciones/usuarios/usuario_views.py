@@ -71,6 +71,8 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
         token = Token.objects.create(user=user)
 
+        print(token)
+
         # Registrar bitácora si tienes la función
         ip = get_client_ip(request)
         registrar_bitacora(
