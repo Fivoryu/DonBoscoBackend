@@ -69,7 +69,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         if not user.is_active:
             return Response({'error': 'Cuenta desactivada'}, status=status.HTTP_403_FORBIDDEN)
 
-        token, _ = Token.objects.get_or_create(user=user)
+        token = Token.objects.create(user=user)
 
         # Registrar bitácora si tienes la función
         ip = get_client_ip(request)
