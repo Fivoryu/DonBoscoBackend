@@ -18,9 +18,12 @@ from .serializers import (
     CreateUnidadEducativaSerializer
 )
 
+from aplicaciones.usuarios.permissions import IsSuperAdmin
+
 class ColegioViewSet(viewsets.ModelViewSet):
     queryset = Colegio.objects.all()
     search_fields = ['nombre', 'direccion']
+    permission_classes = [IsSuperAdmin]  # Permitir solo a SuperAdmin
     parser_classes = [MultiPartParser, FormParser]  # To handle file uploads
 
     def get_serializer_class(self):

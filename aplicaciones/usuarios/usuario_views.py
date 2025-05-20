@@ -6,11 +6,16 @@ from rest_framework.authentication import TokenAuthentication
 
 from django.contrib.auth import authenticate, logout
 from rest_framework.authtoken.models import Token
-from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin
+from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin, MultiToken
+
+from .authentication import MultiTokenAuthentication
+
 
 from django.contrib.auth.models import User as UserModel
 from django.db.models import Count # Importar Count para contar usuarios
 from django.views.decorators.csrf import csrf_exempt
+
+import secrets
 
 from .serializer import (
 
@@ -28,7 +33,7 @@ from .utils import registrar_bitacora
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [MultiTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def register(self, request):
@@ -69,9 +74,12 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         if not user.is_active:
             return Response({'error': 'Cuenta desactivada'}, status=status.HTTP_403_FORBIDDEN)
 
-        token = Token.objects.create(user=user)
-
-        print(token)
+        token = MultiToken.objects.create(
+            user=user,
+            key=secrets.token_hex(20),  # 40 caracteres
+            device_name=request.headers.get("User-Agent", "")[:250]
+        )
+        print(token.key)
 
         # Registrar bitácora si tienes la función
         ip = get_client_ip(request)
@@ -116,7 +124,10 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             )
 
         # Eliminar el token del usuario para terminar la sesión
-        request.user.auth_token.delete()
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Token '):
+            token_key = auth_header.split(' ')[1]
+            MultiToken.objects.filter(key=token_key).delete()
 
         # Realizar logout del usuario
         logout(request)
