@@ -33,9 +33,9 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # 5. CORS: solo origen de frontend
 CORS_ALLOWED_ORIGINS = [
-    os.environ.get('FRONTEND_URL', 'http://localhost:5173', 'http://192.168.0.11:5173'),
+    os.environ.get('FRONTEND_URL', 'http://localhost:5173'),
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    os.environ.get('FRONTEND_URL', 'http://localhost:5173', 'http://192.168.0.11:5173'),
+    os.environ.get('FRONTEND_URL', 'http://localhost:5173'),
 ]
