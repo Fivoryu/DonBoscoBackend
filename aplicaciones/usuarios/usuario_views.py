@@ -90,6 +90,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def logout(self, request):
+        # Registrar bitácora de cierre de sesión
         bitacora = Bitacora.objects.filter(
             usuario=request.user,
             hora_salida__isnull=True
@@ -100,7 +101,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             bitacora.descripcion = "Cierre de sesión"
             bitacora.save()
         else:
-        # Opción: registrar nuevo solo si no se encontró uno anterior
+            # Opción: registrar nuevo solo si no se encontró uno anterior
             ip = get_client_ip(request)
             Bitacora.objects.create(
                 usuario=request.user,
@@ -112,7 +113,10 @@ class UsuarioViewSet(viewsets.ModelViewSet):
                 descripcion="Cierre de sesión sin entrada previa"
             )
 
+        # Eliminar el token del usuario para terminar la sesión
         request.user.auth_token.delete()
+
+        # Realizar logout del usuario
         logout(request)
 
         return Response({'message': 'Sesión cerrada correctamente'})
