@@ -28,3 +28,8 @@ class MateriaCursoSerializer(serializers.ModelSerializer):
     class Meta:
         model = MateriaCurso
         fields = '__all__'
+
+class CreateGradoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Grado
+        fields = '__all__'
