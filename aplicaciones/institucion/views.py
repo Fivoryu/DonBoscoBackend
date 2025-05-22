@@ -149,7 +149,7 @@ class ModuloViewSet(viewsets.ModelViewSet):
             return CreateModuloSerializer
         return ModuloSerializer
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], url_path='listar')
     def listar_modulos(self, request):
         modulos = self.get_queryset()
         serializer = self.get_serializer(modulos, many=True)
@@ -218,7 +218,7 @@ class AulaViewSet(viewsets.ModelViewSet):
             return CreateAulaSerializer
         return AulaSerializer
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], url_path='listar')
     def listar_aulas(self, request):
         aulas = Aula.objects.all()
         serializer = AulaSerializer(aulas, many=True)

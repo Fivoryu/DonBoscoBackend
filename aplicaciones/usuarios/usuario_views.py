@@ -6,7 +6,8 @@ from rest_framework.authentication import TokenAuthentication
 
 from django.contrib.auth import authenticate, logout
 from rest_framework.authtoken.models import Token
-from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin, MultiToken
+from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin, MultiToken, Admin
+from aplicaciones.estudiantes.models import Estudiante, Tutor
 
 from .authentication import MultiTokenAuthentication
 
@@ -30,23 +31,69 @@ from .serializer import (
 from django.utils import timezone
 from .utils import registrar_bitacora
 
+from .permissions import IsSuperAdmin, IsAdmin
+
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
     authentication_classes = [MultiTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def register(self, request):
-        print("inteto de registro")
+        print("Intento de registro")
         serializer = self.get_serializer(data=request.data)
         print("Datos iniciales enviados al serializador:", serializer.initial_data)
+
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # Crear usuario
         user = serializer.save()
+
+        # Asignar rol y crear el objeto correspondiente
+        rol = request.data.get('rol')  # El rol es enviado como un string ('superadmin', 'admin', etc.)
+        
+        if rol:
+            try:
+                # Obtener el rol correspondiente desde la base de datos
+                rol_instance = Rol.objects.get(nombre=rol.lower())  # Aseguramos que el nombre esté en minúsculas
+                user.rol = rol_instance  # Asignamos el rol al usuario
+                user.save()  # Guardamos el usuario con el rol asignado
+
+                # Crear el objeto correspondiente basado en el rol
+                if rol == 'superadmin':
+                    SuperAdmin.objects.create(usuario=user)
+                elif rol == 'admin':
+                    Admin.objects.create(usuario=user, puesto=request.data.get('puesto', ''))
+                elif rol == 'profesor':
+                    Profesor.objects.create(usuario=user)
+                elif rol == 'estudiante':
+                    Estudiante.objects.create(usuario=user, rude=request.data.get('rude', ''))
+                elif rol == 'tutor':
+                    Tutor.objects.create(usuario=user, parentesco=request.data.get('parentesco', 'OTR'))
+                else:
+                    return Response({'error': 'Rol no válido'}, status=status.HTTP_400_BAD_REQUEST)
+            except Rol.DoesNotExist:
+                return Response({'error': 'Rol no encontrado'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Registrar bitácora
+        ip = get_client_ip(request)  # Asumiendo que tienes esta función que obtiene la IP
+        registrar_bitacora(
+            usuario=user,
+            ip=ip,
+            tabla_afectada='usuario',
+            accion='crear',
+            descripcion=f'Creación de nuevo usuario: {user.username}'
+        )
+
         return Response({
             'user': serializer.data,
             'message': 'Usuario registrado exitosamente'
         }, status=status.HTTP_201_CREATED)
+
+
+
 
     @action(
         detail=False,
@@ -293,7 +340,47 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 class RolViewSet(viewsets.ModelViewSet):
     queryset = Rol.objects.all()
     serializer_class = RolSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [MultiTokenAuthentication]
+
+    @action(detail=False, methods=['get'], url_path='listar-roles')
+    def listar_roles(self, request):
+        """
+        GET /user/auth/roles/listar-roles/
+        """
+        serializer = self.get_serializer(self.get_queryset(), many=True)
+        return Response(serializer.data)
+    
+    @csrf_exempt
+    @action(detail=False, methods=['post'], url_path='crear-rol')
+    def crear_rol(self, request):
+        """
+        POST /user/auth/roles/crear-rol/
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        rol = serializer.save()
+        return Response(self.get_serializer(rol).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['put'], url_path='editar-rol')
+    def editar_rol(self, request, pk=None):
+        """
+        PUT /user/auth/roles/editar-rol/{id}/
+        """
+        rol = self.get_object()
+        serializer = self.get_serializer(rol, data=request.data, partial=False)
+        serializer.is_valid(raise_exception=True)
+        rol = serializer.save()
+        return Response(self.get_serializer(rol).data)
+
+    @action(detail=True, methods=['delete'], url_path='eliminar-rol')
+    def eliminar_rol(self, request, pk=None):
+        """
+        DELETE /user/auth/roles/eliminar-rol/{id}/
+        """
+        rol = self.get_object()
+        rol.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class NotificacionViewSet(viewsets.ModelViewSet):
     serializer_class = NotificacionSerializer
