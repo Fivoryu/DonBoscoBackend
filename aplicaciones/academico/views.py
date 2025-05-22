@@ -5,7 +5,8 @@ from .serializers import (
     ParaleloSerializer,
     CursoSerializer,
     MateriaSerializer,
-    MateriaCursoSerializer
+    MateriaCursoSerializer,
+    CreateGradoSerializer,
 )
 
 from aplicaciones.usuarios.utils import registrar_bitacora
@@ -13,12 +14,13 @@ from aplicaciones.usuarios.usuario_views import get_client_ip
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from aplicaciones.usuarios.permissions import IsSuperAdmin
+from aplicaciones.usuarios.permissions import IsAdminOrSuperAdmin
 
 class GradoViewSet(viewsets.ModelViewSet):
     queryset = Grado.objects.all()
     serializer_class = GradoSerializer
     filterset_fields = ['unidad_educativa', 'nivel_educativo']
+    permission_classes = [IsAdminOrSuperAdmin]
 
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update', 'crear_grado', 'editar_grado']:
@@ -105,20 +107,151 @@ class GradoViewSet(viewsets.ModelViewSet):
 class ParaleloViewSet(viewsets.ModelViewSet):
     queryset = Paralelo.objects.all()
     serializer_class = ParaleloSerializer
+    permission_classes = [IsAdminOrSuperAdmin]
     filterset_fields = ['grado', 'letra']
+
+    @action(detail=False, methods=['get'], url_path='listar')
+    def listar_paralelos(self, request):
+        serializer = self.get_serializer(self.get_queryset(), many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='cantidad')
+    def cantidad_paralelos(self, request):
+        count = self.get_queryset().count()
+        return Response({'cantidad': count})
+
+    @action(detail=False, methods=['post'], url_path='crear')
+    def crear_paralelo(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        paralelo = serializer.save()
+        return Response(self.get_serializer(paralelo).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['put'], url_path='editar')
+    def editar_paralelo(self, request, pk=None):
+        paralelo = self.get_object()
+        serializer = self.get_serializer(paralelo, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        paralelo = serializer.save()
+        return Response(self.get_serializer(paralelo).data)
+
+    @action(detail=True, methods=['delete'], url_path='eliminar')
+    def eliminar_paralelo(self, request, pk=None):
+        paralelo = self.get_object()
+        paralelo.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class CursoViewSet(viewsets.ModelViewSet):
     queryset = Curso.objects.all()
     serializer_class = CursoSerializer
+    permission_classes = [IsAdminOrSuperAdmin]
     filterset_fields = ['paralelo']
+
+    @action(detail=False, methods=['get'], url_path='listar')
+    def listar_cursos(self, request):
+        serializer = self.get_serializer(self.get_queryset(), many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='cantidad')
+    def cantidad_cursos(self, request):
+        count = self.get_queryset().count()
+        return Response({'cantidad': count})
+
+    @action(detail=False, methods=['post'], url_path='crear')
+    def crear_curso(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        curso = serializer.save()
+        return Response(self.get_serializer(curso).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['put'], url_path='editar')
+    def editar_curso(self, request, pk=None):
+        curso = self.get_object()
+        serializer = self.get_serializer(curso, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        curso = serializer.save()
+        return Response(self.get_serializer(curso).data)
+
+    @action(detail=True, methods=['delete'], url_path='eliminar')
+    def eliminar_curso(self, request, pk=None):
+        curso = self.get_object()
+        curso.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class MateriaViewSet(viewsets.ModelViewSet):
     queryset = Materia.objects.all()
     serializer_class = MateriaSerializer
+    permission_classes = [IsAdminOrSuperAdmin]
     filterset_fields = ['nombre']
     search_fields = ['nombre']
+
+    @action(detail=False, methods=['get'], url_path='listar-materias')
+    def listar_materias(self, request):
+        serializer = self.get_serializer(self.get_queryset(), many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='cantidad-materias')
+    def cantidad_materias(self, request):
+        count = self.get_queryset().count()
+        return Response({'cantidad': count})
+
+    @action(detail=False, methods=['post'], url_path='crear-materia')
+    def crear_materia(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        materia = serializer.save()
+        return Response(self.get_serializer(materia).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['put'], url_path='editar-materia')
+    def editar_materia(self, request, pk=None):
+        materia = self.get_object()
+        serializer = self.get_serializer(materia, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        materia = serializer.save()
+        return Response(self.get_serializer(materia).data)
+
+    @action(detail=True, methods=['delete'], url_path='eliminar-materia')
+    def eliminar_materia(self, request, pk=None):
+        materia = self.get_object()
+        materia.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class MateriaCursoViewSet(viewsets.ModelViewSet):
     queryset = MateriaCurso.objects.all()
     serializer_class = MateriaCursoSerializer
+    permission_classes = [IsAdminOrSuperAdmin]
     filterset_fields = ['curso', 'materia']
+
+    @action(detail=False, methods=['get'], url_path='listar-asignaciones')
+    def listar_asignaciones(self, request):
+        serializer = self.get_serializer(self.get_queryset(), many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='cantidad-asignaciones')
+    def cantidad_asignaciones(self, request):
+        count = self.get_queryset().count()
+        return Response({'cantidad': count})
+
+    @action(detail=False, methods=['post'], url_path='crear-asignacion')
+    def crear_asignacion(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        asignacion = serializer.save()
+        return Response(self.get_serializer(asignacion).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['put'], url_path='editar-asignacion')
+    def editar_asignacion(self, request, pk=None):
+        asignacion = self.get_object()
+        serializer = self.get_serializer(asignacion, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        asignacion = serializer.save()
+        return Response(self.get_serializer(asignacion).data)
+
+    @action(detail=True, methods=['delete'], url_path='eliminar-asignacion')
+    def eliminar_asignacion(self, request, pk=None):
+        asignacion = self.get_object()
+        asignacion.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
