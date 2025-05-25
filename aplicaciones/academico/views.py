@@ -15,12 +15,19 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from aplicaciones.usuarios.permissions import IsAdminOrSuperAdmin
+from django.views.decorators.csrf import csrf_exempt
+from aplicaciones.usuarios.authentication import CsrfExemptSessionAuthentication
+from rest_framework.permissions import IsAuthenticated
+from aplicaciones.usuarios.authentication import MultiTokenAuthentication
+
+
 
 class GradoViewSet(viewsets.ModelViewSet):
     queryset = Grado.objects.all()
     serializer_class = GradoSerializer
     filterset_fields = ['unidad_educativa', 'nivel_educativo']
     permission_classes = [IsAdminOrSuperAdmin]
+    authentication_classes = [MultiTokenAuthentication]
 
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update', 'crear_grado', 'editar_grado']:
@@ -39,21 +46,25 @@ class GradoViewSet(viewsets.ModelViewSet):
         )
         return Response({'cantidad_grados': cantidad}, status=status.HTTP_200_OK)
 
+    @csrf_exempt
     @action(detail=False, methods=['post'], url_path='crear')
     def crear_grado(self, request):
         serializer = CreateGradoSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            serializer.save()
-            """            registrar_bitacora(
+            grado = serializer.save()
+            # Serializar con serializer de lectura para obtener id y campos anidados
+            read_serializer = GradoSerializer(grado, context={'request': request})
+            print("Id Grado Creado: ", read_serializer.data['id'])
+
+            registrar_bitacora(
                 usuario=request.user,
                 ip=get_client_ip(request),
                 tabla_afectada='grado',
                 accion='crear',
                 descripcion='Creó un grado'
             )
-            """
 
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(read_serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['put'], url_path='editar')
@@ -66,7 +77,6 @@ class GradoViewSet(viewsets.ModelViewSet):
         serializer = CreateGradoSerializer(grado, data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
-            """
             registrar_bitacora(
                 usuario=request.user,
                 ip=get_client_ip(request),
@@ -74,7 +84,6 @@ class GradoViewSet(viewsets.ModelViewSet):
                 accion='editar',
                 descripcion=f'Editó el grado {pk}'
             )
-            """
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -86,14 +95,13 @@ class GradoViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Grado no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         grado.delete()
-        """        registrar_bitacora(
+        registrar_bitacora(
             usuario=request.user,
             ip=get_client_ip(request),
             tabla_afectada='grado',
             accion='eliminar',
             descripcion=f'Eliminó el grado {pk}'
         )
-        """
 
         return Response({'detail': 'Grado eliminado correctamente.'}, status=status.HTTP_204_NO_CONTENT)
 
@@ -101,13 +109,14 @@ class GradoViewSet(viewsets.ModelViewSet):
     def listar_grados(self, request):
         grados = self.filter_queryset(self.get_queryset())
         serializer = GradoSerializer(grados, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data)
 
 
 class ParaleloViewSet(viewsets.ModelViewSet):
     queryset = Paralelo.objects.all()
     serializer_class = ParaleloSerializer
     permission_classes = [IsAdminOrSuperAdmin]
+    authentication_classes = [MultiTokenAuthentication]
     filterset_fields = ['grado', 'letra']
 
     @action(detail=False, methods=['get'], url_path='listar')
@@ -119,12 +128,26 @@ class ParaleloViewSet(viewsets.ModelViewSet):
     def cantidad_paralelos(self, request):
         count = self.get_queryset().count()
         return Response({'cantidad': count})
-
+    
+    @csrf_exempt
     @action(detail=False, methods=['post'], url_path='crear')
     def crear_paralelo(self, request):
+        print("Creando paralelo")
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         paralelo = serializer.save()
+
+        # Crear curso automáticamente
+        numero = paralelo.grado.numero
+        letra = paralelo.letra
+        nivel = paralelo.grado.get_nivel_educativo_display()
+        sufijos = {1: 'ro', 2: 'do', 3: 'ro', 4: 'to', 5: 'to', 6: 'to'}
+        suf = sufijos.get(numero, '°')
+        nombre_curso = f"{numero}{suf} {letra} de {nivel}"
+
+        # Crear curso vinculado al paralelo
+        Curso.objects.create(paralelo=paralelo, nombre=nombre_curso)
+
         return Response(self.get_serializer(paralelo).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['put'], url_path='editar')
@@ -146,18 +169,32 @@ class CursoViewSet(viewsets.ModelViewSet):
     queryset = Curso.objects.all()
     serializer_class = CursoSerializer
     permission_classes = [IsAdminOrSuperAdmin]
+    authentication_classes = [MultiTokenAuthentication]
     filterset_fields = ['paralelo']
 
     @action(detail=False, methods=['get'], url_path='listar')
     def listar_cursos(self, request):
         serializer = self.get_serializer(self.get_queryset(), many=True)
         return Response(serializer.data)
+    
+    
+    @action(detail=False, methods=['get'], url_path='listar-unidad-educativa')
+    def listar_cursos_unidad_educativa(self, request):
+        unidad_educativa_id = request.query_params.get('unidad_educativa_id')
+        if unidad_educativa_id:
+            cursos = self.get_queryset().filter(paralelo__grado__unidad_educativa_id=unidad_educativa_id)
+        else:
+            cursos = self.get_queryset()
+        
+        serializer = self.get_serializer(cursos, many=True)
+        return Response(serializer.data)
 
     @action(detail=False, methods=['get'], url_path='cantidad')
     def cantidad_cursos(self, request):
         count = self.get_queryset().count()
         return Response({'cantidad': count})
-
+    
+    @csrf_exempt
     @action(detail=False, methods=['post'], url_path='crear')
     def crear_curso(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -184,6 +221,7 @@ class MateriaViewSet(viewsets.ModelViewSet):
     queryset = Materia.objects.all()
     serializer_class = MateriaSerializer
     permission_classes = [IsAdminOrSuperAdmin]
+    authentication_classes = [MultiTokenAuthentication]
     filterset_fields = ['nombre']
     search_fields = ['nombre']
 
@@ -197,6 +235,7 @@ class MateriaViewSet(viewsets.ModelViewSet):
         count = self.get_queryset().count()
         return Response({'cantidad': count})
 
+    @csrf_exempt
     @action(detail=False, methods=['post'], url_path='crear-materia')
     def crear_materia(self, request):
         serializer = self.get_serializer(data=request.data)

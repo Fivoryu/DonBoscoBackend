@@ -37,16 +37,16 @@ class Modulo(models.Model):
         null=True,
         blank=True
     )
+    pisos = models.PositiveSmallIntegerField(default=1, help_text='Número de pisos del módulo')
 
-    
-    
+
     class Meta:
         verbose_name = 'Módulo'
         verbose_name_plural = 'Módulos'
         db_table = 'modulo'
     
     def __str__(self):
-        return f"{self.nombre} ({self.cantidad_aulas} aulas)"
+        return f"{self.nombre} ({self.cantidad_aulas} aulas, {self.pisos} pisos)"
 
 class Aula(models.Model):
     TIPOS_AULA = [

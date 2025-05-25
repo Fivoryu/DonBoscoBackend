@@ -30,8 +30,15 @@ from .serializer import (
 
 from django.utils import timezone
 from .utils import registrar_bitacora
+from django.http import JsonResponse
+from django.middleware.csrf import get_token
 
 from .permissions import IsSuperAdmin, IsAdmin
+
+def csrf_token_view(request):
+    # Esto se asegura de que la cookie 'csrftoken' se envíe en la respuesta
+    # y además te devuelve el token en JSON por si lo quieres usar directamente
+    return JsonResponse({'csrftoken': get_token(request)})
 
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all()
