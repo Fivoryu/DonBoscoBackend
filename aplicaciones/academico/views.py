@@ -156,12 +156,63 @@ class ParaleloViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(paralelo, data=request.data)
         serializer.is_valid(raise_exception=True)
         paralelo = serializer.save()
-        return Response(self.get_serializer(paralelo).data)
+
+        registrar_bitacora(
+            usuario=request.user,
+            ip=get_client_ip(request),
+            tabla_afectada='paralelo',
+            descripcion=f'Actualizo el paralelo {paralelo.id} {paralelo.nobmre}'
+        )
+
+        # ——— Aquí actualizamos también el Curso vinculado ———
+        try:
+            curso = paralelo.curso  # dado el OneToOneField relacionado
+        except Curso.DoesNotExist:
+            # Si por algún motivo no existiera, lo creamos:
+            curso = Curso(paralelo=paralelo)
+        
+        numero = paralelo.grado.numero
+        letra = paralelo.letra
+        nivel = paralelo.grado.get_nivel_educativo_display()
+        sufijos = {1: 'ro', 2: 'do', 3: 'ro', 4: 'to', 5: 'to', 6: 'to'}
+        suf = sufijos.get(numero, '°')
+        nuevo_nombre = f"{numero}{suf} {letra} de {nivel}"
+
+        curso.nombre = nuevo_nombre
+        curso.save()
+        registrar_bitacora(
+            usuario=request.user,
+            ip=get_client_ip(request),
+            tabla_afectada='curso',
+            descripcion=f'Actualizó el curso vinculado al paraeleo {paralelo.id} {paralelo.nombre}'
+        )
+        # ——————————————————————————————————————————
+
+        return Response(self.get_serializer(paralelo).data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['delete'], url_path='eliminar')
     def eliminar_paralelo(self, request, pk=None):
         paralelo = self.get_object()
+        try:
+            curso = paralelo.curso
+            registrar_bitacora(
+                usuario=request.user,
+                ip=get_client_ip(request),
+                tabla_afectada='curso',
+                accion='eliminar',
+                descripcion=f'Elimino el curso {curso.id} {curso.nombre} vinculado al paralelo {paralelo.id} {paralelo.nombre}',
+            )
+        except Curso.DoesNotExist:
+            pass
+
         paralelo.delete()
+        registrar_bitacora(
+            usuario=request.user,
+            ip=get_client_ip(request),
+            tabla_afectada='paralelo',
+            acion='eliminar',
+            descripcion=f'Elimino el paralelo {paralelo.id} {paralelo.nombre}',
+        )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
