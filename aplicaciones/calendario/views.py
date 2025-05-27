@@ -343,7 +343,7 @@ class HorarioViewSet(viewsets.ModelViewSet):
                 ip=get_client_ip(request),
                 tabla_afectada='horario',
                 accion='crear',
-                descripcion=f'Creo el horario {obj.tipo.nombre} {obj.dia_display} {obj.hora_inicio} - {obj.hora_fin}'
+                descripcion=f'Creo el horario {obj.tipo.nombre} {obj.dia} {obj.hora_inicio} - {obj.hora_fin}'
             )
             return Response(self.get_serializer(obj).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

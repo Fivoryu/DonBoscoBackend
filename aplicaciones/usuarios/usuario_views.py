@@ -18,6 +18,8 @@ from django.views.decorators.csrf import csrf_exempt
 
 import secrets
 
+from .permissions import IsSuperAdmin
+
 from .serializer import (
 
     UsuarioSerializer,
@@ -36,8 +38,6 @@ from django.middleware.csrf import get_token
 from .permissions import IsSuperAdmin, IsAdmin
 
 def csrf_token_view(request):
-    # Esto se asegura de que la cookie 'csrftoken' se envíe en la respuesta
-    # y además te devuelve el token en JSON por si lo quieres usar directamente
     return JsonResponse({'csrftoken': get_token(request)})
 
 class UsuarioViewSet(viewsets.ModelViewSet):
@@ -264,7 +264,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.data)
    
-    @action(detail=True, methods=['put'], permission_classes=[permissions.IsAdminUser])
+    @action(detail=True, methods=['put'], permission_classes=[IsSuperAdmin], url_path='editar')
     def editar_usuario(self, request, pk=None):
         try:
             usuario = Usuario.objects.get(pk=pk)
@@ -297,7 +297,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             'message': 'Usuario actualizado exitosamente'
         }, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['delete'], permission_classes=[permissions.IsAdminUser])
+    @action(detail=True, methods=['delete'], permission_classes=[IsSuperAdmin], url_path='eliminar')
     def eliminar_usuario(self, request, pk=None):
         try:
             usuario = Usuario.objects.get(pk=pk)
@@ -355,6 +355,7 @@ class RolViewSet(viewsets.ModelViewSet):
         """
         GET /user/auth/roles/listar-roles/
         """
+        print(IsSuperAdmin)
         serializer = self.get_serializer(self.get_queryset(), many=True)
         return Response(serializer.data)
     
