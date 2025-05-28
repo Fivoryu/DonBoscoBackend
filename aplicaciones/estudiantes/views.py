@@ -1,58 +1,145 @@
-from rest_framework import viewsets, status
-from rest_framework.response import Response
+# aplicaciones/personal/views.py
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.views.decorators.csrf import csrf_exempt
+from django.db import transaction
+from aplicaciones.usuarios.permissions import IsAdminOrSuperAdmin
+from aplicaciones.usuarios.utils import registrar_bitacora
+from aplicaciones.usuarios.usuario_views import get_client_ip
+
 from .models import Estudiante, Tutor, TutorEstudiante
 from .serializers import (
-    EstudianteSerializer,
-    TutorSerializer,
-    TutorEstudianteSerializer,
-    CreateEstudianteSerializer,
-    CreateTutorSerializer,
-    CreateTutorEstudianteSerializer
+    EstudianteSerializer, CreateEstudianteSerializer,
+    TutorSerializer, CreateTutorSerializer,
+    TutorEstudianteSerializer, CreateTutorEstudianteSerializer
 )
 
 class EstudianteViewSet(viewsets.ModelViewSet):
-    queryset = Estudiante.objects.all()
-    serializer_class = EstudianteSerializer
-    filterset_fields = ['estado', 'curso']
-    search_fields = ['usuario__nombre', 'usuario__apellido', 'rude']
-    
+    queryset = Estudiante.objects.select_related('usuario','curso').all()
+    permission_classes = [IsAdminOrSuperAdmin]
+
     def get_serializer_class(self):
-        if self.action in ['create', 'update', 'partial_update']:
+        if self.action in ['crear_estudiante','editar_estudiante']:
             return CreateEstudianteSerializer
         return EstudianteSerializer
-    
-    @action(detail=True, methods=['get'])
-    def tutores(self, request, pk=None):
-        estudiante = self.get_object()
-        tutores = estudiante.tutores.all()
-        serializer = TutorEstudianteSerializer(tutores, many=True)
+
+    @action(detail=False, methods=['get'], url_path='listar')
+    def listar(self, request):
+        qs = self.get_queryset()
+        serializer = EstudianteSerializer(qs, many=True)
+        registrar_bitacora(request.user, get_client_ip(request), 'estudiante', 'ver', 'Listar estudiantes')
         return Response(serializer.data)
+
+    @csrf_exempt
+    @action(detail=False, methods=['post'], url_path='crear')
+    def crear_estudiante(self, request):
+        serializer = CreateEstudianteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            est = serializer.save()
+            registrar_bitacora(request.user, get_client_ip(request), 'estudiante', 'crear', f'Crear estudiante {est}')
+        return Response(EstudianteSerializer(est).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['put'], url_path='editar')
+    def editar_estudiante(self, request, pk=None):
+        est = self.get_object()
+        serializer = CreateEstudianteSerializer(est, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            est = serializer.save()
+            registrar_bitacora(request.user, get_client_ip(request), 'estudiante', 'editar', f'Editar estudiante {est}')
+        return Response(EstudianteSerializer(est).data)
+
+    @action(detail=True, methods=['delete'], url_path='eliminar')
+    def eliminar_estudiante(self, request, pk=None):
+        est = self.get_object()
+        est.delete()
+        registrar_bitacora(request.user, get_client_ip(request), 'estudiante', 'eliminar', f'Eliminar estudiante {pk}')
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class TutorViewSet(viewsets.ModelViewSet):
-    queryset = Tutor.objects.all()
-    serializer_class = TutorSerializer
-    filterset_fields = ['parentesco']
-    search_fields = ['usuario__nombre', 'usuario__apellido']
-    
+    queryset = Tutor.objects.select_related('usuario').all()
+    permission_classes = [IsAdminOrSuperAdmin]
+
     def get_serializer_class(self):
-        if self.action in ['create', 'update', 'partial_update']:
+        if self.action in ['crear_tutor','editar_tutor']:
             return CreateTutorSerializer
         return TutorSerializer
-    
-    @action(detail=True, methods=['get'])
-    def estudiantes(self, request, pk=None):
-        tutor = self.get_object()
-        estudiantes = tutor.estudiantes.all()
-        serializer = TutorEstudianteSerializer(estudiantes, many=True)
+
+    @action(detail=False, methods=['get'], url_path='listar')
+    def listar(self, request):
+        serializer = TutorSerializer(self.get_queryset(), many=True)
+        registrar_bitacora(request.user, get_client_ip(request), 'tutor', 'ver', 'Listar tutores')
         return Response(serializer.data)
 
+    @csrf_exempt
+    @action(detail=False, methods=['post'], url_path='crear')
+    def crear_tutor(self, request):
+        serializer = CreateTutorSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            t = serializer.save()
+            registrar_bitacora(request.user, get_client_ip(request), 'tutor', 'crear', f'Crear tutor {t}')
+        return Response(TutorSerializer(t).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['put'], url_path='editar')
+    def editar_tutor(self, request, pk=None):
+        t = self.get_object()
+        serializer = CreateTutorSerializer(t, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            t = serializer.save()
+            registrar_bitacora(request.user, get_client_ip(request), 'tutor', 'editar', f'Editar tutor {t}')
+        return Response(TutorSerializer(t).data)
+
+    @action(detail=True, methods=['delete'], url_path='eliminar')
+    def eliminar_tutor(self, request, pk=None):
+        t = self.get_object()
+        t.delete()
+        registrar_bitacora(request.user, get_client_ip(request), 'tutor', 'eliminar', f'Eliminar tutor {pk}')
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class TutorEstudianteViewSet(viewsets.ModelViewSet):
-    queryset = TutorEstudiante.objects.all()
-    serializer_class = TutorEstudianteSerializer
-    filterset_fields = ['tutor', 'estudiante', 'es_principal']
-    
+    queryset = TutorEstudiante.objects.select_related('tutor__usuario','estudiante__usuario').all()
+    permission_classes = [IsAdminOrSuperAdmin]
+
     def get_serializer_class(self):
-        if self.action in ['create', 'update', 'partial_update']:
+        if self.action in ['crear_relacion','editar_relacion']:
             return CreateTutorEstudianteSerializer
         return TutorEstudianteSerializer
+
+    @action(detail=False, methods=['get'], url_path='listar')
+    def listar(self, request):
+        data = TutorEstudianteSerializer(self.get_queryset(), many=True)
+        registrar_bitacora(request.user, get_client_ip(request), 'tutor_estudiante', 'ver', 'Listar relaciones')
+        return Response(data.data)
+
+    @csrf_exempt
+    @action(detail=False, methods=['post'], url_path='crear')
+    def crear_relacion(self, request):
+        serializer = CreateTutorEstudianteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            rel = serializer.save()
+            registrar_bitacora(request.user, get_client_ip(request), 'tutor_estudiante', 'crear', f'Crear relación {rel}')
+        return Response(TutorEstudianteSerializer(rel).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['put'], url_path='editar')
+    def editar_relacion(self, request, pk=None):
+        rel = self.get_object()
+        serializer = CreateTutorEstudianteSerializer(rel, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            rel = serializer.save()
+            registrar_bitacora(request.user, get_client_ip(request), 'tutor_estudiante', 'editar', f'Editar relación {rel}')
+        return Response(TutorEstudianteSerializer(rel).data)
+
+    @action(detail=True, methods=['delete'], url_path='eliminar')
+    def eliminar_relacion(self, request, pk=None):
+        rel = self.get_object()
+        rel.delete()
+        registrar_bitacora(request.user, get_client_ip(request), 'tutor_estudiante', 'eliminar', f'Eliminar relación {pk}')
+        return Response(status=status.HTTP_204_NO_CONTENT)

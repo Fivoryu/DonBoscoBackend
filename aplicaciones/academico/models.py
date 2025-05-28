@@ -70,6 +70,14 @@ class Curso(models.Model):
         related_name='curso'
     )
     nombre = models.CharField(max_length=100)
+
+    tutor = models.ForeignKey(
+        'personal.Profesor',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='cursos_tutorados'
+    )
     
     class Meta:
         verbose_name = 'Curso'
@@ -77,7 +85,8 @@ class Curso(models.Model):
         db_table = 'curso'
     
     def __str__(self):
-        return f"{self.nombre} - {self.paralelo}"
+        tutor_str = f" (Tutor: {self.tutor})" if self.tutor else ""
+        return f"{self.nombre} - {self.paralelo}{tutor_str}"
 
 class Materia(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
@@ -101,6 +110,14 @@ class MateriaCurso(models.Model):
         on_delete=models.CASCADE,
         related_name='cursos'
     )
+
+    profesor = models.ForeignKey(
+        'personal.Profesor',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='materias_impartidas'
+    )
     
     class Meta:
         verbose_name = 'Materia por Curso'
@@ -109,7 +126,8 @@ class MateriaCurso(models.Model):
         unique_together = ('curso', 'materia')
     
     def __str__(self):
-        return f"{self.materia} en {self.curso}"
+        prof = f" — Prof.: {self.profesor}" if self.profesor else ""
+        return f"{self.materia} en {self.curso}{prof}"
     
 class Clase(models.Model):
     # Apunta ahora a MateriaCurso en lugar de Curso

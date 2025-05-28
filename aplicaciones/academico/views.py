@@ -7,6 +7,7 @@ from .serializers import (
     MateriaSerializer,
     MateriaCursoSerializer,
     CreateGradoSerializer,
+    CreateMateriaCursoSerializer,
 )
 
 from aplicaciones.usuarios.utils import registrar_bitacora
@@ -276,25 +277,25 @@ class MateriaViewSet(viewsets.ModelViewSet):
     filterset_fields = ['nombre']
     search_fields = ['nombre']
 
-    @action(detail=False, methods=['get'], url_path='listar-materias')
+    @action(detail=False, methods=['get'], url_path='listar')
     def listar_materias(self, request):
         serializer = self.get_serializer(self.get_queryset(), many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'], url_path='cantidad-materias')
+    @action(detail=False, methods=['get'], url_path='cantidad')
     def cantidad_materias(self, request):
         count = self.get_queryset().count()
         return Response({'cantidad': count})
 
     @csrf_exempt
-    @action(detail=False, methods=['post'], url_path='crear-materia')
+    @action(detail=False, methods=['post'], url_path='crear')
     def crear_materia(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         materia = serializer.save()
         return Response(self.get_serializer(materia).data, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=['put'], url_path='editar-materia')
+    @action(detail=True, methods=['put'], url_path='editar')
     def editar_materia(self, request, pk=None):
         materia = self.get_object()
         serializer = self.get_serializer(materia, data=request.data)
@@ -302,7 +303,7 @@ class MateriaViewSet(viewsets.ModelViewSet):
         materia = serializer.save()
         return Response(self.get_serializer(materia).data)
 
-    @action(detail=True, methods=['delete'], url_path='eliminar-materia')
+    @action(detail=True, methods=['delete'], url_path='eliminar')
     def eliminar_materia(self, request, pk=None):
         materia = self.get_object()
         materia.delete()
@@ -313,7 +314,13 @@ class MateriaCursoViewSet(viewsets.ModelViewSet):
     queryset = MateriaCurso.objects.all()
     serializer_class = MateriaCursoSerializer
     permission_classes = [IsAdminOrSuperAdmin]
+    authentication_classes = [MultiTokenAuthentication]
     filterset_fields = ['curso', 'materia']
+
+    def get_serializer_class(self):
+        if self.action in ['crear_asignacion', 'editar_asignacion', 'list', 'retrieve']:
+            return CreateMateriaCursoSerializer
+        return MateriaCursoSerializer
 
     @action(detail=False, methods=['get'], url_path='listar-asignaciones')
     def listar_asignaciones(self, request):
@@ -325,20 +332,33 @@ class MateriaCursoViewSet(viewsets.ModelViewSet):
         count = self.get_queryset().count()
         return Response({'cantidad': count})
 
-    @action(detail=False, methods=['post'], url_path='crear-asignacion')
+    @action(
+        detail=False,
+        methods=['post'],
+        url_path='crear-asignacion',
+        serializer_class=CreateMateriaCursoSerializer  # <— aquí
+    )
     def crear_asignacion(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         asignacion = serializer.save()
-        return Response(self.get_serializer(asignacion).data, status=status.HTTP_201_CREATED)
+        return Response(
+            MateriaCursoSerializer(asignacion).data,  # o self.get_serializer(asignacion).data si ajustas get_serializer_class
+            status=status.HTTP_201_CREATED
+        )
 
-    @action(detail=True, methods=['put'], url_path='editar-asignacion')
+    @action(
+        detail=True,
+        methods=['put'],
+        url_path='editar-asignacion',
+        serializer_class=CreateMateriaCursoSerializer
+    )
     def editar_asignacion(self, request, pk=None):
-        asignacion = self.get_object()
-        serializer = self.get_serializer(asignacion, data=request.data)
+        asign = self.get_object()
+        serializer = self.get_serializer(asign, data=request.data)
         serializer.is_valid(raise_exception=True)
-        asignacion = serializer.save()
-        return Response(self.get_serializer(asignacion).data)
+        asign = serializer.save()
+        return Response(MateriaCursoSerializer(asign).data)
 
     @action(detail=True, methods=['delete'], url_path='eliminar-asignacion')
     def eliminar_asignacion(self, request, pk=None):

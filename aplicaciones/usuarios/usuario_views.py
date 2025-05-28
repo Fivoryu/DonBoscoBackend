@@ -8,6 +8,7 @@ from django.contrib.auth import authenticate, logout
 from rest_framework.authtoken.models import Token
 from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin, MultiToken, Admin
 from aplicaciones.estudiantes.models import Estudiante, Tutor
+from aplicaciones.personal.models import Profesor
 
 from .authentication import MultiTokenAuthentication
 
@@ -59,25 +60,28 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         user = serializer.save()
 
         # Asignar rol y crear el objeto correspondiente
-        rol = request.data.get('rol')  # El rol es enviado como un string ('superadmin', 'admin', etc.)
+        rol_id = request.data.get('rol_id')  # El rol es enviado como un string ('superadmin', 'admin', etc.)
+        print(rol_id)
         
-        if rol:
+        if rol_id:
             try:
                 # Obtener el rol correspondiente desde la base de datos
-                rol_instance = Rol.objects.get(nombre=rol.lower())  # Aseguramos que el nombre esté en minúsculas
-                user.rol = rol_instance  # Asignamos el rol al usuario
-                user.save()  # Guardamos el usuario con el rol asignado
+                rol_instance = Rol.objects.get(pk=rol_id)
+                user.rol = rol_instance
+                user.save()
+
+                nombre = rol_instance.nombre.lower()
 
                 # Crear el objeto correspondiente basado en el rol
-                if rol == 'superadmin':
+                if nombre == 'superadmin':
                     SuperAdmin.objects.create(usuario=user)
-                elif rol == 'admin':
+                elif nombre == 'admin':
                     Admin.objects.create(usuario=user, puesto=request.data.get('puesto', ''))
-                elif rol == 'profesor':
+                elif nombre == 'profesor':
                     Profesor.objects.create(usuario=user)
-                elif rol == 'estudiante':
+                elif nombre == 'estudiante':
                     Estudiante.objects.create(usuario=user, rude=request.data.get('rude', ''))
-                elif rol == 'tutor':
+                elif nombre == 'tutor':
                     Tutor.objects.create(usuario=user, parentesco=request.data.get('parentesco', 'OTR'))
                 else:
                     return Response({'error': 'Rol no válido'}, status=status.HTTP_400_BAD_REQUEST)

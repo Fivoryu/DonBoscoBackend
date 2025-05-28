@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Grado, Paralelo, Curso, Materia, MateriaCurso, Clase
 from aplicaciones.institucion.serializers import UnidadEducativaSerializer, AulaSerializer
 from aplicaciones.institucion.models import Aula
+from aplicaciones.personal.models import Profesor
 
 class MateriaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -39,6 +40,7 @@ class ParaleloSerializer(serializers.ModelSerializer):
         return f"{obj.grado.nombre} - Paralelo {obj.letra}"
 
 class CursoSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source='paralelo_id', read_only=True)
     paralelo = ParaleloSerializer(read_only=True)
     paralelo_id = serializers.PrimaryKeyRelatedField(
         queryset=Paralelo.objects.all(), source='paralelo', write_only=True
@@ -46,42 +48,44 @@ class CursoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Curso
-        fields = ['paralelo', 'paralelo_id', 'nombre']
+        fields = ['id', 'paralelo', 'paralelo_id', 'nombre', 'tutor']
 
 class MateriaCursoSerializer(serializers.ModelSerializer):
     materia = MateriaSerializer(read_only=True)
-    materia_id = serializers.PrimaryKeyRelatedField(
-        queryset=Materia.objects.all(), source='materia', write_only=True
-    )
     curso = CursoSerializer(read_only=True)
-    curso_id = serializers.PrimaryKeyRelatedField(
-        queryset=Curso.objects.all(), source='curso', write_only=True
-    )
 
     class Meta:
         model = MateriaCurso
-        fields = ['id', 'curso', 'curso_id', 'materia', 'materia_id']
+        fields = ['id', 'curso', 'materia', 'profesor']
 
 # Serializers para creación / edición
 class CreateGradoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Grado
-        fields = ['unidad_educativa', 'nivel_educativo', 'numero']
+        fields = ['id', 'unidad_educativa', 'nivel_educativo', 'numero']
 
 class CreateParaleloSerializer(serializers.ModelSerializer):
     class Meta:
         model = Paralelo
-        fields = ['grado', 'letra']
+        fields = ['id', 'grado', 'letra']
 
 class CreateCursoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Curso
-        fields = ['paralelo', 'nombre']
+        fields = ['id', 'paralelo', 'nombre', 'tutor']
 
 class CreateMateriaCursoSerializer(serializers.ModelSerializer):
+    curso   = serializers.PrimaryKeyRelatedField(queryset=Curso.objects.all())
+    materia = serializers.PrimaryKeyRelatedField(queryset=Materia.objects.all())
+    profesor = serializers.PrimaryKeyRelatedField(
+        queryset=Profesor.objects.all(),
+        allow_null=True,
+        required=False,
+    )
+
     class Meta:
-        model = MateriaCurso
-        fields = ['curso', 'materia']
+        model  = MateriaCurso
+        fields = ['id', 'curso', 'materia', 'profesor']
 
 class ClaseSerializer(serializers.ModelSerializer):
     materia_curso = MateriaCursoSerializer(read_only=True)
