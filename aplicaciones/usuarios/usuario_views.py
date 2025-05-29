@@ -19,7 +19,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 import secrets
 
-from .permissions import IsSuperAdmin
+from .permissions import IsSuperAdmin, IsAdminOrSuperAdmin
 
 from .serializer import (
 
@@ -397,6 +397,7 @@ class RolViewSet(viewsets.ModelViewSet):
 class NotificacionViewSet(viewsets.ModelViewSet):
     serializer_class = NotificacionSerializer
     permission_classes = [IsAuthenticated]
+    authentication_classes = [MultiTokenAuthentication]
 
     def get_queryset(self):
         return Notificacion.objects.filter(usuario=self.request.user)
@@ -407,13 +408,40 @@ class NotificacionViewSet(viewsets.ModelViewSet):
         notificacion.leida = True
         notificacion.save()
         return Response({'status': 'notificación marcada como leída'})
+    
+
+from rest_framework.pagination import PageNumberPagination
+
+class BitacoraPagination(PageNumberPagination):
+    page_size = 30
+    page_query_param = 'page'
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
 
 class BitacoraViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = BitacoraSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [MultiTokenAuthentication]
+    pagination_class = BitacoraPagination
 
     def get_queryset(self):
-        return Bitacora.objects.all().order_by('-hora_entrada')
+        qs = Bitacora.objects.all().order_by('-hora_entrada')
+        usuario_id = self.request.query_params.get('usuario')
+        if usuario_id:
+            qs = qs.filter(usuario__id=usuario_id)
+        return qs
+
+    @action(detail=False, methods=['get'], url_path='listar')
+    def listar(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 def get_client_ip(request):

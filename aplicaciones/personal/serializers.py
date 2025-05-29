@@ -1,22 +1,31 @@
 from rest_framework import serializers
-from aplicaciones.academico.serializers import MateriaSerializer
+from aplicaciones.academico.serializers import MateriaSerializer, GradoSerializer
 from aplicaciones.usuarios.serializer import UsuarioSerializer
 from .models import Especialidad, Profesor, ProfesorEspecialidad
 from aplicaciones.usuarios.models import Usuario
+from rest_framework.validators import UniqueTogetherValidator
 
 
 class EspecialidadSerializer(serializers.ModelSerializer):
     materia = MateriaSerializer(read_only=True)
+    grado   = GradoSerializer(read_only=True)
 
     class Meta:
         model = Especialidad
-        fields = ['id', 'nombre', 'materia']
+        fields = ['id', 'nombre', 'materia', 'grado']
 
 
 class CreateEspecialidadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Especialidad
-        fields = ['nombre', 'materia']
+        fields = ['nombre', 'materia', 'grado']
+        validators = [
+            UniqueTogetherValidator(
+                queryset=Especialidad.objects.all(),
+                fields=['grado', 'materia'],
+                message="Ya existe una especialidad para este grado y materia."
+            )
+        ]
 
 
 class ProfesorSerializer(serializers.ModelSerializer):

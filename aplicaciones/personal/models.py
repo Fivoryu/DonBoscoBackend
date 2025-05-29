@@ -1,8 +1,15 @@
 from django.db import models
 from aplicaciones.usuarios.models import Usuario
-from aplicaciones.academico.models import Materia
+from aplicaciones.academico.models import Materia, Grado
 
 class Especialidad(models.Model):
+    grado = models.ForeignKey(
+        Grado,
+        on_delete=models.CASCADE,
+        related_name='especialidad',
+        null=True,   
+        blank=True    
+    )
     nombre = models.CharField(max_length=100)
     materia = models.ForeignKey(
         Materia,
@@ -14,7 +21,7 @@ class Especialidad(models.Model):
         verbose_name = 'Especialidad'
         verbose_name_plural = 'Especialidades'
         db_table = 'especialidad'
-        unique_together = ('nombre', 'materia')
+        unique_together = ('grado', 'materia')
     
     def __str__(self):
         return f"{self.nombre} ({self.materia})"

@@ -60,11 +60,25 @@ class NotificacionSerializer(serializers.ModelSerializer):
         read_only_fields = ('fecha', 'usuario')
 
 class BitacoraSerializer(serializers.ModelSerializer):
-    usuario = serializers.StringRelatedField()
-    
+    # Assign current authenticated user automatically
+    usuario = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    hora_entrada = serializers.DateTimeField(read_only=True)
+    fecha = serializers.DateTimeField(read_only=True)
+
     class Meta:
         model = Bitacora
-        fields = '__all__'
+        fields = [
+            'id',
+            'usuario',
+            'hora_entrada',
+            'hora_salida',
+            'ip',
+            'tabla_afectada',
+            'accion',
+            'descripcion',
+            'fecha',
+        ]
+        read_only_fields = ['id']
 
 class SuperAdminSerializer(serializers.ModelSerializer):
     usuario = UsuarioSerializer(read_only=True)

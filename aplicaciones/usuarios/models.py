@@ -172,7 +172,7 @@ class Bitacora(models.Model):
         ('crear', 'Crear'),
         ('editar', 'Editar'),
         ('eliminar', 'Eliminar'),
-        ('ver', 'Ver'),
+        ('listar', 'Listar'),
         ('otro', 'Otro'),
     ]
 
