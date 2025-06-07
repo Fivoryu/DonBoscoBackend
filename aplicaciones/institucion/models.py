@@ -1,6 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator
-from aplicaciones.usuarios.models import Admin, SuperAdmin
+from aplicaciones.usuarios.models import SuperAdmin
 class Colegio(models.Model):
     nombre = models.CharField(max_length=100)
     logo = models.ImageField(upload_to='colegios/logos/', null=True, blank=True)
@@ -111,13 +111,6 @@ class UnidadEducativa(models.Model):
     direccion = models.TextField(blank=True, null=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)
     nivel = models.CharField(max_length=50,blank=True, null=True)
-    admin_fk = models.ForeignKey(
-        Admin,
-        on_delete=models.SET_NULL,
-        related_name='unidades_educativas',
-        null=True,
-        blank=True
-    )
     colegio = models.ForeignKey(
         Colegio,
         on_delete=models.SET_NULL,

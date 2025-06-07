@@ -11,7 +11,6 @@ PARENTESCOS = [
 ]
 
 class Estudiante(models.Model):
-
     
     usuario = models.OneToOneField(
         Usuario,
@@ -27,6 +26,13 @@ class Estudiante(models.Model):
         null=True,
         blank=True,
         related_name='estudiantes'
+    )
+    unidad = models.ForeignKey(
+        'institucion.UnidadEducativa',
+        on_delete=models.PROTECT,
+        related_name="estudiantes",
+        null=True,
+        blank=True
     )
     
     class Meta:

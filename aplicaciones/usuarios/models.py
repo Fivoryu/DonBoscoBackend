@@ -29,6 +29,7 @@ class Rol(models.Model):
 
     def __str__(self):
         return self.nombre
+    
 
 class UsuarioManager(BaseUserManager):
     def create_user(self, ci, email, nombre, apellido, password=None, **extra_fields):
@@ -145,6 +146,38 @@ class SuperAdmin(models.Model):
 
     def __str__(self):
         return str(self.usuario)
+    
+class Puesto(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
+    descripcion = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.nombre
+
+class Accion(models.Model):
+    # Acciones CRUD
+    nombre = models.CharField(max_length=20)  # Ej: 'add', 'view', 'change', 'delete'
+
+    def __str__(self):
+        return self.nombre
+    
+class ModeloPermitido(models.Model):
+    # Aquí puedes definir a qué modelo afecta el permiso
+    nombre = models.CharField(max_length=50)  # Ej: 'profesor', 'estudiante', 'curso'
+
+    def __str__(self):
+        return self.nombre
+    
+class PermisoPuesto(models.Model):
+    puesto = models.ForeignKey(Puesto, on_delete=models.CASCADE, related_name='permisos')
+    modelo = models.ForeignKey(ModeloPermitido, on_delete=models.CASCADE)
+    accion = models.ForeignKey(Accion, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('puesto', 'modelo', 'accion')
+
+    def __str__(self):
+        return f"{self.puesto} puede {self.accion} en {self.modelo}"
 
 class Admin(models.Model):
     usuario = models.OneToOneField(
@@ -153,7 +186,20 @@ class Admin(models.Model):
         primary_key=True,
         related_name='admin'
     )
-    puesto = models.CharField(max_length=100, blank=True, null=True)
+    puesto = models.ForeignKey(
+        Puesto, 
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True
+    )
+
+    unidad = models.ForeignKey(
+        'institucion.UnidadEducativa',
+        on_delete=models.PROTECT,
+        related_name="admins",
+        null=True,
+        blank=True
+    )
     estado = models.BooleanField(default=True)
 
     class Meta:
@@ -162,7 +208,11 @@ class Admin(models.Model):
         db_table = 'admin'
 
     def __str__(self):
-        return f"{self.usuario} - {self.puesto}"
+        return f"{self.usuario} → {self.unidad}"
+    
+
+
+
 # Create your models here.
 from django.db import models
 from django.conf import settings
@@ -225,3 +275,4 @@ class Bitacora(models.Model):
 
     def __str__(self):
         return f"{self.usuario} realizó {self.accion} el {self.fecha:%Y-%m-%d %H:%M:%S}"
+

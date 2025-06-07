@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from aplicaciones.academico.serializers import MateriaSerializer, GradoSerializer
 from aplicaciones.usuarios.serializer import UsuarioSerializer
-from .models import Especialidad, Profesor, ProfesorEspecialidad
+from .models import Especialidad, Profesor, ProfesorEspecialidad, CargaHoraria
 from aplicaciones.usuarios.models import Usuario
 from rest_framework.validators import UniqueTogetherValidator
 
@@ -100,3 +100,25 @@ class CreateProfesorEspecialidadSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProfesorEspecialidad
         fields = ['profesor', 'especialidad']
+
+
+class CargaHorariaSerializer(serializers.ModelSerializer):
+    profesor = ProfesorSerializer(read_only=True)
+    especialidad = EspecialidadSerializer(read_only=True)
+    unidad = serializers.StringRelatedField(read_only=True)
+
+    class Meta:
+        model = CargaHoraria
+        fields = ['id', 'profesor', 'especialidad', 'unidad', 'horas', 'periodo']
+
+class CreateCargaHorariaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CargaHoraria
+        fields = ['profesor', 'especialidad', 'unidad', 'horas', 'periodo']
+        validators = [
+            UniqueTogetherValidator(
+                queryset=CargaHoraria.objects.all(),
+                fields=['profesor', 'especialidad', 'unidad', 'periodo'],
+                message="Ya existe una carga horaria para este profesor, especialidad, unidad y periodo."
+            )
+        ]

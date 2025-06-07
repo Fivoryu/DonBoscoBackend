@@ -63,17 +63,16 @@ class CreateAulaSerializer(serializers.ModelSerializer):
 class UnidadEducativaSerializer(serializers.ModelSerializer):
     """Serializer para representar unidades educativas con colegio y administrador."""
     colegio = ColegioSerializer(read_only=True)
-    admin = serializers.StringRelatedField(source='admin_fk')
 
     class Meta:
         model = UnidadEducativa
         fields = [
             'id', 'codigo_sie', 'turno', 'nombre', 'direccion',
-            'telefono', 'nivel', 'colegio', 'admin'
+            'telefono', 'nivel', 'colegio'
         ]
 
 class CreateUnidadEducativaSerializer(serializers.ModelSerializer):
     """Serializer para creación/edición de unidades educativas."""
     class Meta:
         model = UnidadEducativa
-        fields = ['codigo_sie', 'turno', 'nombre', 'direccion', 'telefono', 'nivel', 'colegio', 'admin_fk']
+        fields = ['codigo_sie', 'turno', 'nombre', 'direccion', 'telefono', 'nivel', 'colegio']

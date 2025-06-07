@@ -5,7 +5,11 @@ from .usuario_views import (
     RolViewSet,
     NotificacionViewSet,
     BitacoraViewSet,
-    
+    PuestoViewSet,
+    AdminViewSet,
+    AccionViewSet,
+    ModeloPermitidoViewSet,
+    PermisoPuestoViewSet,
 )
 
 router = DefaultRouter()
@@ -13,6 +17,11 @@ router.register(r'usuarios', UsuarioViewSet, basename='usuario')
 router.register(r'roles', RolViewSet, basename='rol')
 router.register(r'notificaciones', NotificacionViewSet, basename='notificacion')
 router.register(r'bitacoras', BitacoraViewSet, basename='bitacora')
+router.register(r'puestos', PuestoViewSet, basename='puesto')
+router.register(r'admins', AdminViewSet, basename='admin')
+router.register(r'acciones', AccionViewSet, basename='accion')
+router.register(r'modelos-permitidos', ModeloPermitidoViewSet, basename='modelopermitido')
+router.register(r'permisos-puesto', PermisoPuestoViewSet, basename='permisopuesto')
 
 urlpatterns = [
     path('auth/', include(router.urls)),

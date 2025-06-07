@@ -1,7 +1,9 @@
 from rest_framework import serializers
-from .models import Usuario, Rol, Notificacion, Bitacora
+from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin, Puesto, Admin, Accion, ModeloPermitido, PermisoPuesto
 from django.contrib.auth.hashers import make_password
-from .models import SuperAdmin
+from django.apps import apps as models
+from aplicaciones.institucion.models import UnidadEducativa, Colegio
+from aplicaciones.institucion.serializers import ColegioSerializer
 
 class RolSerializer(serializers.ModelSerializer):
     class Meta:
@@ -86,3 +88,92 @@ class SuperAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = SuperAdmin
         fields = ['usuario_id', 'usuario']
+
+class PuestoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Puesto
+        fields = ['id', 'nombre', 'descripcion']
+        read_only_fields = ['id']
+
+class AdminSerializer(serializers.ModelSerializer):
+    usuario = UsuarioSerializer(read_only=True)
+    usuario_id = serializers.PrimaryKeyRelatedField(
+        queryset=Usuario.objects.all(),
+        source='usuario',
+        write_only=True
+    )
+    puesto = PuestoSerializer(read_only=True)
+    puesto_id = serializers.PrimaryKeyRelatedField(
+        queryset=Puesto.objects.all(),
+        source='puesto',
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+    # Cambia unidad a read_only y agrega unidad_id para escritura
+    unidad = serializers.SerializerMethodField(read_only=True)
+    unidad_id = serializers.PrimaryKeyRelatedField(
+        queryset=UnidadEducativa.objects.all(),
+        source='unidad',
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+
+    def get_unidad(self, obj):
+        if obj.unidad:
+            # Devuelve todos los campos relevantes de la unidad educativa, incluyendo el colegio anidado
+            return {
+                "id": obj.unidad.id,
+                "nombre": obj.unidad.nombre,
+                "codigo_sie": obj.unidad.codigo_sie,
+                "turno": obj.unidad.turno,
+                "direccion": obj.unidad.direccion,
+                "telefono": obj.unidad.telefono,
+                "nivel": obj.unidad.nivel,
+                "colegio": ColegioSerializer(obj.unidad.colegio).data if obj.unidad.colegio else None,
+            }
+        return None
+
+    class Meta:
+        model = Admin
+        fields = [
+            'usuario_id', 'usuario',
+            'puesto_id', 'puesto',
+            'unidad_id', 'unidad',
+            'estado'
+        ]
+
+class AccionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Accion
+        fields = ['id', 'nombre']
+
+class ModeloPermitidoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ModeloPermitido
+        fields = ['id', 'nombre']
+
+class PermisoPuestoSerializer(serializers.ModelSerializer):
+    puesto = PuestoSerializer(read_only=True)
+    puesto_id = serializers.PrimaryKeyRelatedField(
+        queryset=Puesto.objects.all(),
+        source='puesto',
+        write_only=True
+    )
+    modelo = ModeloPermitidoSerializer(read_only=True)
+    modelo_id = serializers.PrimaryKeyRelatedField(
+        queryset=ModeloPermitido.objects.all(),
+        source='modelo',
+        write_only=True
+    )
+    accion = AccionSerializer(read_only=True)
+    accion_id = serializers.PrimaryKeyRelatedField(
+        queryset=Accion.objects.all(),
+        source='accion',
+        write_only=True
+    )
+
+    class Meta:
+        model = PermisoPuesto
+        fields = ['id', 'puesto', 'puesto_id', 'modelo', 'modelo_id', 'accion', 'accion_id']

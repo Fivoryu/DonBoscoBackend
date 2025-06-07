@@ -2,24 +2,24 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.views.decorators.csrf import csrf_exempt
-from aplicaciones.usuarios.permissions import IsAdminOrSuperAdmin
+from aplicaciones.usuarios.permissions import PermisoPorPuesto
 from aplicaciones.usuarios.utils import registrar_bitacora
 from aplicaciones.usuarios.authentication import MultiTokenAuthentication
 from aplicaciones.usuarios.usuario_views import get_client_ip
 
-from .models import Especialidad, Profesor, ProfesorEspecialidad
+from .models import Especialidad, Profesor, ProfesorEspecialidad, CargaHoraria
 from .serializers import (
     EspecialidadSerializer, CreateEspecialidadSerializer,
     ProfesorSerializer,    CreateProfesorSerializer,
     ProfesorEspecialidadSerializer, CreateProfesorEspecialidadSerializer,
-    UpdateProfesorSerializer
-
+    UpdateProfesorSerializer,
+    CargaHorariaSerializer, CreateCargaHorariaSerializer
 )
 
 
 class EspecialidadViewSet(viewsets.ModelViewSet):
     queryset = Especialidad.objects.all()
-    permission_classes = [IsAdminOrSuperAdmin]
+    permission_classes = [PermisoPorPuesto]
     authentication_classes = [MultiTokenAuthentication]
 
     def get_serializer_class(self):
@@ -72,7 +72,7 @@ class EspecialidadViewSet(viewsets.ModelViewSet):
 
 class ProfesorViewSet(viewsets.ModelViewSet):
     queryset = Profesor.objects.all()
-    permission_classes = [IsAdminOrSuperAdmin]
+    permission_classes = [PermisoPorPuesto]
     authentication_classes = [MultiTokenAuthentication]
 
     def get_serializer_class(self):
@@ -126,7 +126,7 @@ class ProfesorViewSet(viewsets.ModelViewSet):
 
 class ProfesorEspecialidadViewSet(viewsets.ModelViewSet):
     queryset = ProfesorEspecialidad.objects.select_related('profesor', 'especialidad')
-    permission_classes = [IsAdminOrSuperAdmin]
+    permission_classes = [PermisoPorPuesto]
     authentication_classes = [MultiTokenAuthentication]
 
     def get_serializer_class(self):
@@ -174,4 +174,58 @@ class ProfesorEspecialidadViewSet(viewsets.ModelViewSet):
         pe.delete()
         registrar_bitacora(request.user, get_client_ip(request),
                            'profesor_especialidad', 'eliminar', f'Removió {pe}')
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
+
+
+class CargaHorariaViewSet(viewsets.ModelViewSet):
+    queryset = CargaHoraria.objects.select_related('profesor', 'especialidad', 'unidad')
+    permission_classes = [PermisoPorPuesto]
+    authentication_classes = [MultiTokenAuthentication]
+
+    def get_serializer_class(self):
+        if self.action in ['crear', 'editar']:
+            return CreateCargaHorariaSerializer
+        return CargaHorariaSerializer
+
+    @action(detail=False, methods=['get'], url_path='listar')
+    def listar(self, request):
+        qs = self.get_queryset()
+        serializer = CargaHorariaSerializer(qs, many=True)
+        registrar_bitacora(request.user, get_client_ip(request),
+                           'carga_horaria', 'ver', 'Listó cargas horarias')
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], url_path='crear')
+    @csrf_exempt
+    def crear(self, request):
+        serializer = CreateCargaHorariaSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        carga = serializer.save()
+        registrar_bitacora(request.user, get_client_ip(request),
+                           'carga_horaria', 'crear', f'Asignó {carga}')
+        return Response(CargaHorariaSerializer(carga).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['put'], url_path='editar')
+    def editar(self, request, pk=None):
+        try:
+            carga = CargaHoraria.objects.get(pk=pk)
+        except CargaHoraria.DoesNotExist:
+            return Response({'detail':'No encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = CreateCargaHorariaSerializer(carga, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        carga = serializer.save()
+        registrar_bitacora(request.user, get_client_ip(request),
+                           'carga_horaria', 'editar', f'Editó {carga}')
+        return Response(CargaHorariaSerializer(carga).data)
+
+    @action(detail=True, methods=['delete'], url_path='eliminar')
+    def eliminar(self, request, pk=None):
+        try:
+            carga = CargaHoraria.objects.get(pk=pk)
+        except CargaHoraria.DoesNotExist:
+            return Response({'detail':'No encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        carga.delete()
+        registrar_bitacora(request.user, get_client_ip(request),
+                           'carga_horaria', 'eliminar', f'Eliminó carga horaria {pk}')
         return Response(status=status.HTTP_204_NO_CONTENT)

@@ -18,11 +18,14 @@ from .serializers import (
     CreateUnidadEducativaSerializer
 )
 from aplicaciones.usuarios.authentication import CsrfExemptSessionAuthentication
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Count
+from aplicaciones.usuarios.models import Admin
+from aplicaciones.estudiantes.models import Estudiante, Tutor, TutorEstudiante
+from aplicaciones.personal.models import Profesor
 
-from aplicaciones.usuarios.permissions import IsSuperAdmin, IsAdminOrSuperAdmin
+from aplicaciones.usuarios.permissions import IsSuperAdmin, IsAdminOrSuperAdmin, PermisoPorPuesto
 from aplicaciones.usuarios.authentication import MultiTokenAuthentication
 
 class ColegioViewSet(viewsets.ModelViewSet):
@@ -151,7 +154,7 @@ class ModuloViewSet(viewsets.ModelViewSet):
     queryset = Modulo.objects.annotate(cantidad_aulas_real=Count('aulas'))
     search_fields = ['nombre']
     filterset_fields = ['cantidad_aulas_real']
-    permission_classes = [IsAuthenticated]
+    permission_classes = [PermisoPorPuesto]
     authentication_classes = [MultiTokenAuthentication]
 
     def get_queryset(self):
@@ -222,7 +225,7 @@ class ModuloViewSet(viewsets.ModelViewSet):
         read_ser = ModuloSerializer(modulo, context={'request': request})
         return Response(read_ser.data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['delete'])
+    @action(detail=True, methods=['delete'], url_path='eliminar')
     def eliminar_modulo(self, request, pk=None):
         try:
             modulo = Modulo.objects.get(pk=pk)
@@ -331,6 +334,7 @@ class UnidadEducativaViewSet(viewsets.ModelViewSet):
     queryset = UnidadEducativa.objects.all()
     filterset_fields = ['colegio', 'turno']
     search_fields = ['codigo_sie', 'direccion']
+    # Cambia aquí para permitir acceso GET a todos los autenticados
     permission_classes = [IsAuthenticated]
     authentication_classes = [MultiTokenAuthentication]
     
@@ -411,3 +415,32 @@ class UnidadEducativaViewSet(viewsets.ModelViewSet):
         
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @action(
+        detail=True,
+        methods=['get'],
+        url_path='usuarios-cantidad',
+        permission_classes=[IsAuthenticated],  # <-- permite GET a cualquier autenticado
+    )
+    def cantidad_usuarios_por_unidad(self, request, pk=None):
+        try:
+            unidad = UnidadEducativa.objects.get(pk=pk)
+        except UnidadEducativa.DoesNotExist:
+            return Response({'detail': 'Unidad Educativa no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Contar usuarios por rol en la unidad educativa
+        admins = Admin.objects.filter(unidad=unidad).count()
+        profesores = Profesor.objects.filter(unidad=unidad).count()
+        alumnos = Estudiante.objects.filter(unidad=unidad).count()
+        # Tutores: buscar tutores que tengan estudiantes en esta unidad
+        tutores = Tutor.objects.filter(
+            estudiantes__estudiante__unidad=unidad
+        ).distinct().count()
+        total = admins + profesores + tutores + alumnos
+
+        return Response({
+            "admins": admins,
+            "profesores": profesores,
+            "tutores": tutores,
+            "alumnos": alumnos,
+            "total": total
+        })

@@ -6,7 +6,8 @@ from rest_framework.authentication import TokenAuthentication
 
 from django.contrib.auth import authenticate, logout
 from rest_framework.authtoken.models import Token
-from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin, MultiToken, Admin
+from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin, MultiToken, Admin, Puesto, Accion, ModeloPermitido, PermisoPuesto
+
 from aplicaciones.estudiantes.models import Estudiante, Tutor
 from aplicaciones.personal.models import Profesor
 
@@ -14,12 +15,12 @@ from .authentication import MultiTokenAuthentication
 
 
 from django.contrib.auth.models import User as UserModel
-from django.db.models import Count # Importar Count para contar usuarios
+from django.db.models import Count, Q # Importar Count y Q para consultas complejas
 from django.views.decorators.csrf import csrf_exempt
 
 import secrets
 
-from .permissions import IsSuperAdmin, IsAdminOrSuperAdmin
+from .permissions import IsSuperAdmin, IsAdminOrSuperAdmin, PermisoPorPuesto
 
 from .serializer import (
 
@@ -29,6 +30,11 @@ from .serializer import (
     BitacoraSerializer,
     LoginSerializer,
     SuperAdminSerializer,
+    AdminSerializer,
+    PuestoSerializer,
+    AccionSerializer,
+    ModeloPermitidoSerializer,
+    PermisoPuestoSerializer,
 )
 
 from django.utils import timezone
@@ -47,11 +53,9 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     authentication_classes = [MultiTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
-    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    @action(detail=False, methods=['post'], permission_classes=[PermisoPorPuesto])
     def register(self, request):
-        print("Intento de registro")
         serializer = self.get_serializer(data=request.data)
-        print("Datos iniciales enviados al serializador:", serializer.initial_data)
 
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -156,7 +160,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             'user': user_data
         })
 
-    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def logout(self, request):
         # Registrar bitácora de cierre de sesión
         bitacora = Bitacora.objects.filter(
@@ -193,7 +197,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         return Response({'message': 'Sesión cerrada correctamente'})
     
     
-    @action(detail=False, methods=['get'], permission_classes=[AllowAny],)
+    @action(detail=False, methods=['get'], permission_classes=[PermisoPorPuesto],)
     def cantidad(self, request):
         cantidad = Usuario.objects.count()
 
@@ -204,7 +208,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         detail=False, 
         methods=['get'],
         url_path='cantidad-por-rol',
-        permission_classes=[IsAuthenticated]     
+        permission_classes=[PermisoPorPuesto]     
     )
 
     def cantidad_por_rol(self, request):
@@ -227,7 +231,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
     
-    @action(detail=False, methods=['get'], url_path='perfil')
+    @action(detail=False, methods=['get'], url_path='perfil', permission_classes=[IsAuthenticated])
     def perfil(self, request):
         # Aquí request.user siempre es un Usuario autenticado
         print("Entrando a perfil")
@@ -249,11 +253,35 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=['get'],
         url_path='listar-usuarios',
-        permission_classes=[IsAuthenticated]  # refuerza login en este action
+        permission_classes=[PermisoPorPuesto]  # refuerza login en este action
     )
     def listar_usuarios(self, request):
-        usuarios = Usuario.objects.all()
-        serializer = UsuarioSerializer(usuarios, many=True)
+        user = request.user
+
+        # 1) SuperAdmin → todos los usuarios
+        if hasattr(user, 'superadmin'):
+            qs = Usuario.objects.all()
+
+        # 2) Admin → usuarios de su unidad
+        elif hasattr(user, 'admin') and user.admin.unidad:
+            unidad = user.admin.unidad
+            qs = Usuario.objects.filter(
+                Q(admin__unidad=unidad) |
+                Q(profesor__unidad=unidad) |
+                Q(estudiante__unidad=unidad) |
+                Q(
+                    tutor__estudiantes__estudiante__unidad=unidad
+                ) 
+            ).distinct()
+
+        # 3) Cualquier otro rol (Profesor, Estudiante, Tutor, etc.) → NO tiene permiso
+        else:
+            return Response(
+                {'detail': 'No tienes permiso para listar usuarios.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        serializer = UsuarioSerializer(qs, many=True)
 
         # Solo registra bitácora si es un Usuario real y autenticado
         user = request.user
@@ -268,7 +296,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.data)
    
-    @action(detail=True, methods=['put'], permission_classes=[IsSuperAdmin], url_path='editar')
+    @action(detail=True, methods=['put'], permission_classes=[PermisoPorPuesto], url_path='editar')
     def editar_usuario(self, request, pk=None):
         try:
             usuario = Usuario.objects.get(pk=pk)
@@ -301,7 +329,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             'message': 'Usuario actualizado exitosamente'
         }, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['delete'], permission_classes=[IsSuperAdmin], url_path='eliminar')
+    @action(detail=True, methods=['delete'], permission_classes=[PermisoPorPuesto], url_path='eliminar')
     def eliminar_usuario(self, request, pk=None):
         try:
             usuario = Usuario.objects.get(pk=pk)
@@ -319,14 +347,14 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     
         return Response({'message': 'Usuario eliminado correctamente'}, status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=False, methods=['get'], url_path='listar-superadmins', permission_classes=[permissions.IsAdminUser])
+    @action(detail=False, methods=['get'], url_path='listar-superadmins', permission_classes=[PermisoPorPuesto])
     def listar_superadmins(self, request):
         queryset = SuperAdmin.objects.select_related('usuario').all()
         serializer = SuperAdminSerializer(queryset, many=True)
         
         return Response(serializer.data)
     
-    @action(detail=False, methods=['get'], url_path='listar-admins', permission_classes=[permissions.IsAdminUser])
+    @action(detail=False, methods=['get'], url_path='listar-admins', permission_classes=[PermisoPorPuesto])
     def listar_admins(self, request):
         """
         Lista todos los administradores registrados en el sistema.
@@ -345,7 +373,6 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         )
         
         return Response(serializer.data)
-
     
 
 class RolViewSet(viewsets.ModelViewSet):
@@ -421,7 +448,7 @@ class BitacoraPagination(PageNumberPagination):
 
 class BitacoraViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = BitacoraSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [PermisoPorPuesto]
     authentication_classes = [MultiTokenAuthentication]
     pagination_class = BitacoraPagination
 
@@ -442,7 +469,169 @@ class BitacoraViewSet(viewsets.ReadOnlyModelViewSet):
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+    
+class PuestoViewSet(viewsets.ModelViewSet):
+    queryset = Puesto.objects.all()
+    serializer_class = PuestoSerializer
+    permission_classes = [PermisoPorPuesto]
+    authentication_classes = [MultiTokenAuthentication]
 
+    @action(detail=False, methods=['get'], url_path='listar-puestos')
+    def listar_puestos(self, request):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], url_path='crear-puesto')
+    def crear_puesto(self, request):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            puesto = serializer.save()
+            return Response(self.get_serializer(puesto).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['put'], url_path='editar-puesto')
+    def editar_puesto(self, request, pk=None):
+        try:
+            puesto = Puesto.objects.get(pk=pk)
+        except Puesto.DoesNotExist:
+            return Response({'error': 'Puesto no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = self.get_serializer(puesto, data=request.data, partial=True)
+        if serializer.is_valid():
+            puesto = serializer.save()
+            return Response(self.get_serializer(puesto).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['delete'], url_path='eliminar-puesto')
+    def eliminar_puesto(self, request, pk=None):
+        try:
+            puesto = Puesto.objects.get(pk=pk)
+        except Puesto.DoesNotExist:
+            return Response({'error': 'Puesto no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        puesto.delete()
+        return Response({'message': 'Puesto eliminado correctamente'}, status=status.HTTP_204_NO_CONTENT)
+
+class AdminViewSet(viewsets.ModelViewSet):
+    queryset = Admin.objects.select_related('usuario', 'puesto', 'unidad').all()
+    serializer_class = AdminSerializer
+    permission_classes = [PermisoPorPuesto]
+    authentication_classes = [MultiTokenAuthentication]
+
+    @action(detail=False, methods=['get'], url_path='listar-admins')
+    def listar_admins(self, request):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], url_path='crear-admin')
+    def crear_admin(self, request):
+        """
+        Crea un Admin. Si usuario_id está presente, usa ese usuario.
+        Si no, crea un nuevo usuario con los datos enviados.
+        Espera: usuario_id (opcional), datos de usuario (si no existe), puesto_id, unidad, estado
+        """
+        usuario_id = request.data.get('usuario_id')
+        if usuario_id:
+            # Usar usuario existente
+            try:
+                usuario = Usuario.objects.get(pk=usuario_id)
+            except Usuario.DoesNotExist:
+                return Response({'error': 'Usuario no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            # Crear nuevo usuario
+            # Extraer campos de usuario directamente de request.data
+            usuario_fields = [
+                'ci', 'foto', 'nombre', 'apellido', 'sexo', 'email',
+                'fecha_nacimiento', 'username', 'estado', 'password', 'rol_id'
+            ]
+            usuario_data = {k: request.data.get(k) for k in usuario_fields if k in request.data}
+            if not usuario_data.get('ci') or not usuario_data.get('nombre') or not usuario_data.get('apellido'):
+                return Response({'error': 'Datos de usuario requeridos'}, status=status.HTTP_400_BAD_REQUEST)
+            usuario_serializer = UsuarioSerializer(data=usuario_data)
+            if not usuario_serializer.is_valid():
+                return Response(usuario_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            usuario = usuario_serializer.save()
+            # Asignar rol admin si no viene en el payload
+            if not usuario_data.get('rol_id'):
+                try:
+                    rol_admin = Rol.objects.get(nombre__iexact='admin')
+                    usuario.rol = rol_admin
+                    usuario.save()
+                except Rol.DoesNotExist:
+                    return Response({'error': 'Rol admin no encontrado'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Crear el admin
+        admin_data = request.data.copy()
+        admin_data['usuario_id'] = usuario.pk
+        # Asegura que los campos sean id, no objetos ni strings vacíos
+        if 'puesto_id' in admin_data and not admin_data['puesto_id']:
+            admin_data['puesto_id'] = None
+        if 'unidad_id' in admin_data and not admin_data['unidad_id']:
+            admin_data['unidad_id'] = None
+        serializer = self.get_serializer(data=admin_data)
+        if serializer.is_valid():
+            admin = serializer.save()
+            return Response(self.get_serializer(admin).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['put'], url_path='editar-admin')
+    def editar_admin(self, request, pk=None):
+        try:
+            admin = Admin.objects.get(pk=pk)
+        except Admin.DoesNotExist:
+            return Response({'error': 'Admin no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = self.get_serializer(admin, data=request.data, partial=True)
+        if serializer.is_valid():
+            admin = serializer.save()
+            return Response(self.get_serializer(admin).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['delete'], url_path='eliminar-admin')
+    def eliminar_admin(self, request, pk=None):
+        try:
+            admin = Admin.objects.get(pk=pk)
+        except Admin.DoesNotExist:
+            return Response({'error': 'Admin no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        admin.delete()
+        return Response({'message': 'Admin eliminado correctamente'}, status=status.HTTP_204_NO_CONTENT)
+
+class AccionViewSet(viewsets.ModelViewSet):
+    queryset = Accion.objects.all()
+    serializer_class = AccionSerializer
+    permission_classes = [PermisoPorPuesto]
+    authentication_classes = [MultiTokenAuthentication]
+
+class ModeloPermitidoViewSet(viewsets.ModelViewSet):
+    queryset = ModeloPermitido.objects.all()
+    serializer_class = ModeloPermitidoSerializer
+    permission_classes = [PermisoPorPuesto]
+    authentication_classes = [MultiTokenAuthentication]
+
+class PermisoPuestoViewSet(viewsets.ModelViewSet):
+    queryset = PermisoPuesto.objects.select_related('puesto', 'modelo', 'accion').all()
+    serializer_class = PermisoPuestoSerializer
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [MultiTokenAuthentication]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        puesto_id = self.request.query_params.get('puesto_id')
+        if puesto_id:
+            try:
+                puesto_id_int = int(puesto_id)
+                queryset = queryset.filter(puesto__id=puesto_id_int)
+            except ValueError:
+                queryset = queryset.none()
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        puesto_id = request.query_params.get('puesto_id')
+        if not puesto_id:
+            return Response([], status=200)
+        queryset = self.get_queryset()
+        print(f"[DEBUG] PermisoPuestoViewSet.list puesto_id={puesto_id} count={queryset.count()}")
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 def get_client_ip(request):
         x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")

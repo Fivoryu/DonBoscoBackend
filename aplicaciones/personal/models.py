@@ -34,6 +34,13 @@ class Profesor(models.Model):
         related_name='profesor'
     )
     estado = models.BooleanField(default=True)
+    unidad = models.ForeignKey(
+        'institucion.UnidadEducativa',
+        on_delete=models.PROTECT,
+        related_name="profesores",
+        null=True,
+        blank=True
+    )
     
     class Meta:
         verbose_name = 'Profesor'
@@ -65,3 +72,31 @@ class ProfesorEspecialidad(models.Model):
     
     def __str__(self):
         return f"{self.profesor} - {self.especialidad}"
+
+class CargaHoraria(models.Model):
+    profesor = models.ForeignKey(
+        Profesor,
+        on_delete=models.CASCADE,
+        related_name='cargas_horarias'
+    )
+    especialidad = models.ForeignKey(
+        Especialidad,
+        on_delete=models.CASCADE,
+        related_name='cargas_horarias'
+    )
+    unidad = models.ForeignKey(
+        'institucion.UnidadEducativa',
+        on_delete=models.CASCADE,
+        related_name='cargas_horarias'
+    )
+    horas = models.PositiveSmallIntegerField()
+    periodo = models.CharField(max_length=20, blank=True, null=True)  # Ej: "2025-1"
+    
+    class Meta:
+        verbose_name = 'Carga Horaria'
+        verbose_name_plural = 'Cargas Horarias'
+        db_table = 'carga_horaria'
+        unique_together = ('profesor', 'especialidad', 'unidad', 'periodo')
+
+    def __str__(self):
+        return f"{self.profesor} - {self.especialidad} - {self.horas}h"

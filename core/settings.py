@@ -138,7 +138,7 @@ AUTH_USER_MODEL = 'usuarios.Usuario'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'academic_db',       # Nombre de la DB
+        'NAME': 'academia_db1',       # Nombre de la DB
         'USER': 'academica1',        # Usuario PostgreSQL
         'PASSWORD': 'gestionacademica', # Contraseña PostgreSQL
         'HOST': 'localhost',         # Si PostgreSQL está instalado localmente

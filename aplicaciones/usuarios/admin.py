@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin, Admin
+from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin, Admin, Puesto, Accion, ModeloPermitido, PermisoPuesto
 
 class CustomUserAdmin(UserAdmin):
     list_display = ('username', 'email', 'nombre', 'apellido', 'rol', 'is_staff')
@@ -60,9 +60,34 @@ class AdminAdmin(admin.ModelAdmin):
     list_filter = ('estado', 'puesto')
     search_fields = ('usuario__username', 'puesto')
 
+class PuestoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'descripcion')
+    search_fields = ('nombre',)
+
+class AccionAdmin(admin.ModelAdmin):
+    list_display = ('nombre',)
+    search_fields = ('nombre',)
+
+class ModeloPermitidoAdmin(admin.ModelAdmin):
+    list_display = ('nombre',)
+    search_fields = ('nombre',)
+
+class PermisoPuestoAdmin(admin.ModelAdmin):
+    list_display = ('puesto', 'modelo', 'accion')
+    list_filter = ('puesto', 'modelo', 'accion')
+    search_fields = ('puesto__nombre', 'modelo__nombre', 'accion__nombre')
+
+# Elimina cualquier registro duplicado de modelos en admin.site.register
+# Si tienes admin.site.register(Puesto) en models.py, elimínalo de allí.
+# Solo registra aquí en admin.py:
+
 admin.site.register(Usuario, CustomUserAdmin)
 admin.site.register(Rol, RolAdmin)
 admin.site.register(Notificacion, NotificacionAdmin)
 admin.site.register(Bitacora, BitacoraAdmin)
 admin.site.register(SuperAdmin, SuperAdminAdmin)
 admin.site.register(Admin, AdminAdmin)
+admin.site.register(Puesto, PuestoAdmin)
+admin.site.register(Accion, AccionAdmin)
+admin.site.register(ModeloPermitido, ModeloPermitidoAdmin)
+admin.site.register(PermisoPuesto, PermisoPuestoAdmin)
