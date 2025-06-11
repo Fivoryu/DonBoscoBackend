@@ -4,10 +4,10 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
-from aplicaciones.usuarios.permissions import IsAdminOrSuperAdmin
+from aplicaciones.usuarios.permissions import IsAdminOrSuperAdmin, PermisoPorPuesto
 from aplicaciones.usuarios.utils import registrar_bitacora
 from aplicaciones.usuarios.usuario_views import get_client_ip
-
+from aplicaciones.usuarios.authentication import MultiTokenAuthentication
 from .models import Estudiante, Tutor, TutorEstudiante
 from .serializers import (
     EstudianteSerializer, CreateEstudianteSerializer,
@@ -17,8 +17,8 @@ from .serializers import (
 
 class EstudianteViewSet(viewsets.ModelViewSet):
     queryset = Estudiante.objects.select_related('usuario','curso').all()
-    permission_classes = [IsAdminOrSuperAdmin]
-
+    permission_classes = [PermisoPorPuesto]
+    authentication_classes = [MultiTokenAuthentication]
     def get_serializer_class(self):
         if self.action in ['crear_estudiante','editar_estudiante']:
             return CreateEstudianteSerializer
@@ -61,7 +61,8 @@ class EstudianteViewSet(viewsets.ModelViewSet):
 
 class TutorViewSet(viewsets.ModelViewSet):
     queryset = Tutor.objects.select_related('usuario').all()
-    permission_classes = [IsAdminOrSuperAdmin]
+    permission_classes = [PermisoPorPuesto]
+    authentication_classes = [MultiTokenAuthentication]
 
     def get_serializer_class(self):
         if self.action in ['crear_tutor','editar_tutor']:
@@ -100,11 +101,21 @@ class TutorViewSet(viewsets.ModelViewSet):
         t.delete()
         registrar_bitacora(request.user, get_client_ip(request), 'tutor', 'eliminar', f'Eliminar tutor {pk}')
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+    @action(detail=False, methods=["get"], url_path="usuario/(?P<usuario_id>[^/.]+)")
+    def get_by_usuario(self, request, usuario_id=None):
+        try:
+            tutor = Tutor.objects.get(usuario_id=usuario_id)
+            serializer = self.get_serializer(tutor)
+            return Response(serializer.data)
+        except Tutor.DoesNotExist:
+            return Response({"detail": "No existe"}, status=status.HTTP_404_NOT_FOUND)
 
 
 class TutorEstudianteViewSet(viewsets.ModelViewSet):
     queryset = TutorEstudiante.objects.select_related('tutor__usuario','estudiante__usuario').all()
-    permission_classes = [IsAdminOrSuperAdmin]
+    permission_classes = [PermisoPorPuesto]
+    authentication_classes = [MultiTokenAuthentication]
 
     def get_serializer_class(self):
         if self.action in ['crear_relacion','editar_relacion']:

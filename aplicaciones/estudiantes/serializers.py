@@ -3,6 +3,7 @@ from rest_framework import serializers
 from aplicaciones.usuarios.models import Usuario
 from aplicaciones.academico.models import Curso
 from .models import Estudiante, Tutor, TutorEstudiante
+from aplicaciones.institucion.models import UnidadEducativa
 
 class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
@@ -14,14 +15,19 @@ class CursoSimpleSerializer(serializers.ModelSerializer):
         model = Curso
         fields = ['paralelo_id', 'nombre']  # asumiendo que usas paralelo como pk
 
+class UnidadEducativaSimpleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UnidadEducativa
+        fields = ['id', 'nombre']        
 # --- Estudiante ---
 class EstudianteSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source='usuario.id', read_only=True) 
     usuario   = UsuarioSerializer(read_only=True)
     curso     = CursoSimpleSerializer(read_only=True)
-
+    unidad = UnidadEducativaSimpleSerializer(read_only=True)   
     class Meta:
         model  = Estudiante
-        fields = ['usuario', 'rude', 'estado', 'curso']
+        fields = ['id','usuario', 'rude', 'estado', 'curso', 'unidad']
 
 class CreateEstudianteSerializer(serializers.ModelSerializer):
     usuario_id = serializers.PrimaryKeyRelatedField(
@@ -36,10 +42,17 @@ class CreateEstudianteSerializer(serializers.ModelSerializer):
         required=False,
         write_only=True
     )
+    unidad_id = serializers.PrimaryKeyRelatedField(
+        queryset=UnidadEducativa.objects.all(),
+        source='unidad',
+        allow_null=True,
+        required=False,
+        write_only=True
+    )
 
     class Meta:
         model  = Estudiante
-        fields = ['usuario_id', 'rude', 'estado', 'curso_id']
+        fields = ['usuario_id', 'rude', 'estado', 'curso_id', 'unidad_id']
 
 # --- Tutor ---
 class TutorSerializer(serializers.ModelSerializer):
@@ -85,3 +98,5 @@ class CreateTutorEstudianteSerializer(serializers.ModelSerializer):
     class Meta:
         model  = TutorEstudiante
         fields = ['tutor_id', 'estudiante_id', 'es_principal']
+        
+
