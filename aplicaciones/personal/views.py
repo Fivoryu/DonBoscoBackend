@@ -179,7 +179,7 @@ class ProfesorEspecialidadViewSet(viewsets.ModelViewSet):
 
 
 class CargaHorariaViewSet(viewsets.ModelViewSet):
-    queryset = CargaHoraria.objects.select_related('profesor', 'especialidad', 'unidad')
+    queryset = CargaHoraria.objects.select_related('profesor_especialidad__profesor', 'profesor_especialidad__especialidad', 'periodo')
     permission_classes = [PermisoPorPuesto]
     authentication_classes = [MultiTokenAuthentication]
 

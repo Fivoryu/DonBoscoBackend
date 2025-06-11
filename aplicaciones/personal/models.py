@@ -1,6 +1,7 @@
 from django.db import models
 from aplicaciones.usuarios.models import Usuario
 from aplicaciones.academico.models import Materia, Grado
+from aplicaciones.calendario.models import Periodo
 
 class Especialidad(models.Model):
     grado = models.ForeignKey(
@@ -74,29 +75,33 @@ class ProfesorEspecialidad(models.Model):
         return f"{self.profesor} - {self.especialidad}"
 
 class CargaHoraria(models.Model):
-    profesor = models.ForeignKey(
-        Profesor,
+    profesor_especialidad = models.ForeignKey(
+        ProfesorEspecialidad,
         on_delete=models.CASCADE,
-        related_name='cargas_horarias'
-    )
-    especialidad = models.ForeignKey(
-        Especialidad,
-        on_delete=models.CASCADE,
-        related_name='cargas_horarias'
-    )
-    unidad = models.ForeignKey(
-        'institucion.UnidadEducativa',
-        on_delete=models.CASCADE,
-        related_name='cargas_horarias'
+        related_name='cargas_horarias',
+        null=True,    # <-- permite nulos temporalmente
+        blank=True    # <-- permite en formularios
     )
     horas = models.PositiveSmallIntegerField()
-    periodo = models.CharField(max_length=20, blank=True, null=True)  # Ej: "2025-1"
+    periodo = models.ForeignKey(
+        Periodo,
+        on_delete=models.PROTECT,
+        related_name='cargas_horarias',
+        null=True,
+        blank=True
+    )
     
     class Meta:
         verbose_name = 'Carga Horaria'
         verbose_name_plural = 'Cargas Horarias'
         db_table = 'carga_horaria'
-        unique_together = ('profesor', 'especialidad', 'unidad', 'periodo')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['profesor_especialidad', 'periodo'],
+                name='unique_profesor_especialidad_periodo'
+            )
+        ]
+        ordering = ['-periodo', '-horas']
 
     def __str__(self):
-        return f"{self.profesor} - {self.especialidad} - {self.horas}h"
+        return f"{self.profesor_especialidad} - {self.horas}h"
