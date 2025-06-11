@@ -84,7 +84,18 @@ class UsuarioViewSet(viewsets.ModelViewSet):
                 elif nombre == 'profesor':
                     Profesor.objects.create(usuario=user)
                 elif nombre == 'estudiante':
-                    Estudiante.objects.create(usuario=user, rude=request.data.get('rude', ''))
+                    rude = request.data.get('rude', '').strip()
+                    curso_id = request.data.get('curso_id')
+                    unidad_id = request.data.get('unidad_id')
+                    if not rude:
+                        return Response({'error': 'El campo RUDE es obligatorio para estudiantes.'}, status=400)
+                    estudiante = Estudiante(
+                        usuario=user,
+                        rude=rude,
+                        curso_id=curso_id,
+                        unidad_id=unidad_id
+                     )   
+                    estudiante.save() 
                 elif nombre == 'tutor':
                     Tutor.objects.create(usuario=user, parentesco=request.data.get('parentesco', 'OTR'))
                 else:
