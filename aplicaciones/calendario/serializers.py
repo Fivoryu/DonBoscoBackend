@@ -39,7 +39,10 @@ class FeriadoSerializer(serializers.ModelSerializer):
       'nombre', 'descripcion', 'fecha'
     ]
 
+from aplicaciones.institucion.serializers import UnidadEducativaSerializer
+
 class CalendarioAcademicoSerializer(serializers.ModelSerializer):
+    unidad_educativa = UnidadEducativaSerializer(read_only=True)
     unidad_educativa_nombre = serializers.CharField(
         source='unidad_educativa.nombre', read_only=True
     )
