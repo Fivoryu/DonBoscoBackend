@@ -1,5 +1,7 @@
+from django.forms import ValidationError
+from rest_framework.viewsets import ModelViewSet 
 from rest_framework import viewsets
-from .models import Grado, Paralelo, Curso, Materia, MateriaCurso
+from .models import Grado, Paralelo, Curso, Materia, MateriaCurso,Clase
 from .serializers import (
     GradoSerializer,
     ParaleloSerializer,
@@ -8,6 +10,7 @@ from .serializers import (
     MateriaCursoSerializer,
     CreateGradoSerializer,
     CreateMateriaCursoSerializer,
+    ClaseSerializer
 )
 
 from aplicaciones.usuarios.utils import registrar_bitacora
@@ -15,11 +18,12 @@ from aplicaciones.usuarios.usuario_views import get_client_ip
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from aplicaciones.usuarios.permissions import IsAdminOrSuperAdmin
+
 from django.views.decorators.csrf import csrf_exempt
 from aplicaciones.usuarios.authentication import CsrfExemptSessionAuthentication
 from rest_framework.permissions import IsAuthenticated
 from aplicaciones.usuarios.authentication import MultiTokenAuthentication
+from aplicaciones.usuarios.permissions import IsAdminOrSuperAdmin, PermisoPorPuesto
 
 
 
@@ -364,4 +368,115 @@ class MateriaCursoViewSet(viewsets.ModelViewSet):
     def eliminar_asignacion(self, request, pk=None):
         asignacion = self.get_object()
         asignacion.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(
+        detail=False,
+        methods=['get'],
+        url_path='listar-unidad-educativa'
+    )
+    def listar_por_unidad_educativa(self, request):
+        """
+        Parámetros:
+          • unidad_educativa_id : int  (obligatorio para filtrar)
+
+        Devuelve todas las asignaciones MateriaCurso cuyo curso pertenece
+        a la unidad educativa indicada.
+        """
+        unidad_id = request.query_params.get('unidad_educativa_id')
+        qs = self.filter_queryset(self.get_queryset())
+
+        if unidad_id:
+            qs = qs.filter(
+                curso__paralelo__grado__unidad_educativa_id=unidad_id
+            )
+        else:
+            # Si no llega el parámetro devolvemos lista vacía (o todas, según prefieras)
+            return Response([], status=status.HTTP_200_OK)
+
+        serializer = self.get_serializer(qs, many=True)
+        return Response(serializer.data)
+
+
+class ClaseViewSet(viewsets.ModelViewSet):
+    
+    queryset = Clase.objects.select_related(
+        'materia_curso__materia', 'materia_curso__curso', 'aula'
+    )
+    serializer_class      = ClaseSerializer
+    permission_classes    = [IsAdminOrSuperAdmin]
+    authentication_classes = [MultiTokenAuthentication]
+    filterset_fields      = ['materia_curso', 'aula']
+    search_fields         = ['materia_curso__materia__nombre',
+                             'materia_curso__curso__nombre',
+                             'aula__nombre']
+
+    # ---------- LISTAR ----------
+    @action(detail=False, methods=['get'], url_path='listar')
+    def listar_clases(self, request):
+        serializer = self.get_serializer(self.filter_queryset(self.get_queryset()), many=True)
+        return Response(serializer.data)
+
+    # ---------- CANTIDAD ----------
+    @action(detail=False, methods=['get'], url_path='cantidad')
+    def cantidad_clases(self, request):
+        return Response({'cantidad': self.get_queryset().count()})
+
+    # ---------- CREAR ----------
+    @csrf_exempt
+    @action(detail=False, methods=['post'], url_path='crear')
+    def crear_clase(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # evita duplicado materia_curso + aula
+        mc   = serializer.validated_data['materia_curso']
+        aula = serializer.validated_data['aula']
+        if Clase.objects.filter(materia_curso=mc, aula=aula).exists():
+            raise ValidationError('Esa materia/curso ya está asignada a ese aula.')
+
+        clase = serializer.save()
+        registrar_bitacora(
+            usuario=request.user,
+            ip=get_client_ip(request),
+            tabla_afectada='clase',
+            accion='crear',
+            descripcion=f'Creó la clase {clase.id}'
+        )
+        return Response(self.get_serializer(clase).data, status=status.HTTP_201_CREATED)
+
+    # ---------- EDITAR ----------
+    @action(detail=True, methods=['put'], url_path='editar')
+    def editar_clase(self, request, pk=None):
+        clase = self.get_object()
+        serializer = self.get_serializer(clase, data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        mc   = serializer.validated_data['materia_curso']
+        aula = serializer.validated_data['aula']
+        if Clase.objects.filter(materia_curso=mc, aula=aula).exclude(id=clase.id).exists():
+            raise ValidationError('Otra clase con esa materia/curso y aula ya existe.')
+
+        clase = serializer.save()
+        registrar_bitacora(
+            usuario=request.user,
+            ip=get_client_ip(request),
+            tabla_afectada='clase',
+            accion='editar',
+            descripcion=f'Editó la clase {clase.id}'
+        )
+        return Response(self.get_serializer(clase).data)
+
+    # ---------- ELIMINAR ----------
+    @action(detail=True, methods=['delete'], url_path='eliminar')
+    def eliminar_clase(self, request, pk=None):
+        clase = self.get_object()
+        registrar_bitacora(
+            usuario=request.user,
+            ip=get_client_ip(request),
+            tabla_afectada='clase',
+            accion='eliminar',
+            descripcion=f'Eliminó la clase {clase.id}'
+        )
+        clase.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
