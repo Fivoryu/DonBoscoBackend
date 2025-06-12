@@ -3,6 +3,7 @@ from aplicaciones.institucion.models import UnidadEducativa, Aula  # Asumiendo q
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 
+
 class Grado(models.Model):
     NIVELES_EDUCATIVOS = [
         ('INI', 'Educación Inicial'),
@@ -129,6 +130,9 @@ class MateriaCurso(models.Model):
         prof = f" — Prof.: {self.profesor}" if self.profesor else ""
         return f"{self.materia} en {self.curso}{prof}"
     
+
+
+    
 class Clase(models.Model):
     # Apunta ahora a MateriaCurso en lugar de Curso
     materia_curso = models.ForeignKey(
@@ -153,4 +157,4 @@ class Clase(models.Model):
 
     def __str__(self):
         # Muestro la materia y el curso a través de la relación intermedia
-        return f"{self.materia_curso.materia.nombre} en {self.materia_curso.curso.nombre} — Aula {self.aula.nombre}"
+        return f"{self.materia_curso.materia.nombre} en {self.materia_curso.curso.nombre} — Aula {self.aula.nombre}"    

@@ -4,6 +4,9 @@ from aplicaciones.institucion.serializers import UnidadEducativaSerializer, Aula
 from aplicaciones.institucion.models import Aula
 from aplicaciones.personal.models import Profesor
 
+from rest_framework.serializers import ModelSerializer, CharField
+from aplicaciones.academico.models import Clase
+
 class MateriaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Materia
@@ -86,6 +89,8 @@ class CreateMateriaCursoSerializer(serializers.ModelSerializer):
     class Meta:
         model  = MateriaCurso
         fields = ['id', 'curso', 'materia', 'profesor']
+
+
 
 class ClaseSerializer(serializers.ModelSerializer):
     materia_curso = MateriaCursoSerializer(read_only=True)
