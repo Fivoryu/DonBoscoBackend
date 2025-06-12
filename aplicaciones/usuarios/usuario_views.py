@@ -99,6 +99,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
                 elif nombre == 'tutor':
                     Tutor.objects.create(usuario=user, parentesco=request.data.get('parentesco', 'OTR'))
                 else:
+                    print(f"Rol no reconocido: {rol_instance.nombre}")
                     return Response({'error': 'Rol no válido'}, status=status.HTTP_400_BAD_REQUEST)
             except Rol.DoesNotExist:
                 return Response({'error': 'Rol no encontrado'}, status=status.HTTP_400_BAD_REQUEST)

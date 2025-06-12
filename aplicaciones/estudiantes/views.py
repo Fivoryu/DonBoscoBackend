@@ -34,7 +34,17 @@ class EstudianteViewSet(viewsets.ModelViewSet):
     @csrf_exempt
     @action(detail=False, methods=['post'], url_path='crear')
     def crear_estudiante(self, request):
-        serializer = CreateEstudianteSerializer(data=request.data)
+        data = request.data.copy()
+        # Si el usuario debe crearse aquí, hazlo antes y asigna el id al estudiante
+        usuario_data = data.pop('usuario', None)
+        if usuario_data:
+            from aplicaciones.usuarios.models import Usuario
+            from aplicaciones.usuarios.serializer import UsuarioSerializer
+            usuario_serializer = UsuarioSerializer(data=usuario_data)
+            usuario_serializer.is_valid(raise_exception=True)
+            usuario = usuario_serializer.save()
+            data['usuario'] = usuario.id
+        serializer = CreateEstudianteSerializer(data=data)
         serializer.is_valid(raise_exception=True)
         with transaction.atomic():
             est = serializer.save()
