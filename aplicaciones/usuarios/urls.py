@@ -10,6 +10,7 @@ from .usuario_views import (
     AccionViewSet,
     ModeloPermitidoViewSet,
     PermisoPuestoViewSet,
+    PermisoRolViewSet,
 )
 
 router = DefaultRouter()
@@ -22,6 +23,7 @@ router.register(r'admins', AdminViewSet, basename='admin')
 router.register(r'acciones', AccionViewSet, basename='accion')
 router.register(r'modelos-permitidos', ModeloPermitidoViewSet, basename='modelopermitido')
 router.register(r'permisos-puesto', PermisoPuestoViewSet, basename='permisopuesto')
+router.register(r'permisos-rol', PermisoRolViewSet, basename='permisorol')
 
 urlpatterns = [
     path('auth/', include(router.urls)),

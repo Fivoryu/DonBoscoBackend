@@ -6,7 +6,7 @@ from rest_framework.authentication import TokenAuthentication
 
 from django.contrib.auth import authenticate, logout
 from rest_framework.authtoken.models import Token
-from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin, MultiToken, Admin, Puesto, Accion, ModeloPermitido, PermisoPuesto
+from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin, MultiToken, Admin, Puesto, Accion, ModeloPermitido, PermisoPuesto, PermisoRol
 
 from aplicaciones.estudiantes.models import Estudiante, Tutor
 from aplicaciones.personal.models import Profesor
@@ -20,7 +20,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 import secrets
 
-from .permissions import IsSuperAdmin, IsAdminOrSuperAdmin, PermisoPorPuesto
+from .permissions import IsSuperAdmin, PermisoPorRol, PermisoPorPuesto
 
 from .serializer import (
 
@@ -35,6 +35,7 @@ from .serializer import (
     AccionSerializer,
     ModeloPermitidoSerializer,
     PermisoPuestoSerializer,
+    PermisoRolSerializer,
 )
 
 from django.utils import timezone
@@ -644,6 +645,15 @@ class PermisoPuestoViewSet(viewsets.ModelViewSet):
         print(f"[DEBUG] PermisoPuestoViewSet.list puesto_id={puesto_id} count={queryset.count()}")
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+    
+class PermisoRolViewSet(viewsets.ModelViewSet):
+    """
+    CRUD de permisos por Rol. Solo Admin/SuperAdmin pueden modificar.
+    """
+    queryset = PermisoRol.objects.select_related('rol', 'modelo', 'accion')
+    serializer_class = PermisoRolSerializer
+    permission_classes = [PermisoPorPuesto, PermisoPorRol]
+    authentication_classes = [MultiTokenAuthentication]
 
 def get_client_ip(request):
         x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")

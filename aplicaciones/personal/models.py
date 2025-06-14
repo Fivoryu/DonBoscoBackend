@@ -79,8 +79,8 @@ class CargaHoraria(models.Model):
         ProfesorEspecialidad,
         on_delete=models.CASCADE,
         related_name='cargas_horarias',
-        null=True,    # <-- permite nulos temporalmente
-        blank=True    # <-- permite en formularios
+        null=True,   
+        blank=True  
     )
     horas = models.PositiveSmallIntegerField()
     periodo = models.ForeignKey(

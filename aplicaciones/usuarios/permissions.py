@@ -1,89 +1,192 @@
-from rest_framework.permissions import BasePermission
-from .models import PermisoPuesto
+from rest_framework.permissions import BasePermission, SAFE_METHODS
+from .models import PermisoPuesto, PermisoRol, Accion, ModeloPermitido
 
+
+_METHOD_TO_ACTION = {
+    'GET':    'view',
+    'HEAD':   'view',
+    'OPTIONS':'view',
+    'POST':   'add',
+    'PUT':    'change',
+    'PATCH':  'change',
+    'DELETE': 'delete',
+}
+
+def metodo_a_accion(method: str) -> str:
+    """
+    Mapea el método HTTP a la acción correspondiente.
+    """
+    return _METHOD_TO_ACTION.get(method, Accion.VIEW)
+
+# ──────────────────────────────────────────────────────────────
+#  Permisos base por tipo de usuario
+# ──────────────────────────────────────────────────────────────
 class IsSuperAdmin(BasePermission):
-    """
-    Permite el acceso solo a usuarios que estén relacionados con el modelo SuperAdmin.
-    """
     def has_permission(self, request, view):
-        return hasattr(request.user, 'superadmin') and request.user.is_authenticated
+        return request.user.is_authenticated and hasattr(request.user, 'superadmin')
+
 
 class IsAdmin(BasePermission):
-    """
-    Permite el acceso solo a usuarios que estén relacionados con el modelo Admin.
-    """
     def has_permission(self, request, view):
-        return hasattr(request.user, 'admin') and request.user.is_authenticated
-    
+        return request.user.is_authenticated and hasattr(request.user, 'admin')
+
+
 class IsAdminOrSuperAdmin(BasePermission):
-    """
-    Permite el acceso solo a usuarios que sean Admin o SuperAdmin.
-    """
     def has_permission(self, request, view):
-        user = request.user
-        if not user or not user.is_authenticated:
-            return False
-        return hasattr(user, 'admin') or hasattr(user, 'superadmin')
-    
+        u = request.user
+        return u.is_authenticated and (hasattr(u, 'admin') or hasattr(u, 'superadmin'))
+
+
 class IsEstudiante(BasePermission):
     def has_permission(self, request, view):
-        return hasattr(request.user, 'estudiante') and request.user.is_authenticated
+        return request.user.is_authenticated and hasattr(request.user, 'estudiante')
+
 
 class IsProfesor(BasePermission):
     def has_permission(self, request, view):
-        return hasattr(request.user, 'profesor') and request.user.is_authenticated
+        return request.user.is_authenticated and hasattr(request.user, 'profesor')
+
 
 class IsTutor(BasePermission):
     def has_permission(self, request, view):
-        return hasattr(request.user, 'tutor') and request.user.is_authenticated
-    
+        return request.user.is_authenticated and hasattr(request.user, 'tutor')
+
+
 class IsProfesorOrTutor(BasePermission):
     def has_permission(self, request, view):
-        return (
-            (hasattr(request.user, 'profesor') or hasattr(request.user, 'tutor'))
-            and request.user.is_authenticated
-        )
+        u = request.user
+        return u.is_authenticated and (hasattr(u, 'profesor') or hasattr(u, 'tutor'))
+
+
     
+# ──────────────────────────────────────────────────────────────
+#  PermisoPorPuesto → Admin con cargos variables
+# ──────────────────────────────────────────────────────────────
 class PermisoPorPuesto(BasePermission):
+    """
+    Consulta la tabla PermisoPuesto:
+    (puesto, modelo, accion)
+    """
     def has_permission(self, request, view):
-        print(f"[PermisoPorPuesto] Evaluando permiso para: {request.user}")
-        print(f"[PermisoPorPuesto] Método: {request.method}, View: {view.basename}")
+        user = request.user
+        if not user.is_authenticated:
+            return False
 
-        # Superadmin siempre tiene acceso
-        if hasattr(request.user, 'superadmin'):
-            print("[PermisoPorPuesto] Usuario es SuperAdmin: acceso concedido.")
+        # SuperAdmin bypass
+        if hasattr(user, 'superadmin'):
             return True
 
-        # Permitir GET si no es admin (ej: público autenticado viendo dashboard)
-        if request.method == 'GET' and not hasattr(request.user, 'admin'):
-            print("[PermisoPorPuesto] Usuario no es admin pero está autenticado con GET: acceso concedido.")
+        # Solo Admin usa este permiso
+        if not hasattr(user, 'admin'):
+            # Otros roles pasan a PermisoPorRol o a lógica específica
+            return request.method in SAFE_METHODS
+
+        admin   = user.admin
+        puesto  = admin.puesto
+        modelo  = view.basename
+        accion  = metodo_a_accion(request.method)
+
+        return PermisoPuesto.objects.filter(
+            puesto=puesto,
+            modelo__nombre=modelo,
+            accion__nombre=accion
+        ).exists()
+    
+# ──────────────────────────────────────────────────────────────
+#  PermisoPorRol → roles fijos (Estudiante, Profesor, Tutor…)
+# ──────────────────────────────────────────────────────────────
+class PermisoPorRol(BasePermission):
+    """
+    Usa (rol, modelo, accion) de la tabla PermisoRol.
+    Pasa si existe al menos una fila que coincida.
+    """
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user.is_authenticated:
+            return False
+
+        # SuperAdmin bypass
+        if hasattr(user, 'superadmin'):
             return True
 
-        if hasattr(request.user, 'admin'):
-            admin = request.user.admin
-            puesto = admin.puesto
-            modelo = view.basename
-            accion = self.metodo_a_accion(request.method)
+        # Admin se delega a PermisoPorPuesto
+        if hasattr(user, 'admin'):
+            return True   # lo evaluará PermisoPorPuesto en la lista de permisos
 
-            print(f"[PermisoPorPuesto] Admin: {admin}, Puesto: {puesto}, Modelo: {modelo}, Acción: {accion}")
+        # Resto de usuarios deben tener un Rol
+        if not user.rol_id:
+            return request.method in SAFE_METHODS
 
-            permiso_existe = PermisoPuesto.objects.filter(
-                puesto=puesto,
-                modelo__nombre=modelo,
-                accion__nombre=accion
-            ).exists()
+        accion = metodo_a_accion(request.method)
+        modelo = view.basename
 
-            print(f"[PermisoPorPuesto] ¿Permiso encontrado en la BD? {permiso_existe}")
-            return permiso_existe
+        return PermisoRol.objects.filter(
+            rol_id=user.rol_id,
+            modelo__nombre=modelo,
+            accion__nombre=accion
+        ).exists()
+    
 
-        print("[PermisoPorPuesto] Usuario no tiene relación con Admin ni SuperAdmin: acceso denegado.")
+# ──────────────────────────────────────────────────────────────
+#  PermisoEstudianteView → regla específica de negocio
+# ──────────────────────────────────────────────────────────────
+class PermisoEstudianteView(BasePermission):
+    """
+    Combina:
+      • SuperAdmin → todo
+      • Admin      → PermisoPorPuesto
+      • Otros roles → PermisoPorRol
+      • Tutor      → lectura solo si está vinculado al estudiante
+      • Profesor   → lectura si tutor del curso O dicta materia en ese curso
+      • Estudiante → solo su propio registro
+    """
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user.is_authenticated:
+            return False
+
+        # SuperAdmin bypass
+        if hasattr(user, 'superadmin'):
+            return True
+
+        # Admin → validamos con PermisoPorPuesto
+        if hasattr(user, 'admin'):
+            return PermisoPorPuesto().has_permission(request, view)
+
+        # Otros roles → validamos con PermisoPorRol
+        return PermisoPorRol().has_permission(request, view)
+
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+
+        # SuperAdmin / Admin ya pasaron
+        if hasattr(user, 'superadmin') or hasattr(user, 'admin'):
+            return True
+
+        # Estudiante: solo suya
+        if hasattr(user, 'estudiante'):
+            return obj.pk == user.pk
+
+        # Tutor: vínculo en TutorEstudiante
+        if hasattr(user, 'tutor'):
+            return obj.tutores.filter(tutor__usuario=user).exists()
+
+        # Profesor: tutor del curso o dicta alguna materia en ese curso
+        if hasattr(user, 'profesor'):
+            prof  = user.profesor
+            curso = obj.curso
+            if not curso:
+                return False
+
+            # 1) Tutor del curso
+            if curso.tutor_id == prof.pk:
+                return True
+
+            # 2) Profesor asignado en MateriaCurso
+            from aplicaciones.academico.models import MateriaCurso
+            return MateriaCurso.objects.filter(curso=curso, profesor=prof).exists()
+
+        # Cualquier otro rol (visitante) → denegado
         return False
-
-    def metodo_a_accion(self, method):
-        return {
-            'GET': 'view',
-            'POST': 'add',
-            'PUT': 'change',
-            'PATCH': 'change',
-            'DELETE': 'delete'
-        }.get(method, 'view')

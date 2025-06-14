@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
-from aplicaciones.usuarios.permissions import IsAdminOrSuperAdmin, PermisoPorPuesto
+from aplicaciones.usuarios.permissions import PermisoEstudianteView, PermisoPorPuesto, PermisoPorRol
 from aplicaciones.usuarios.utils import registrar_bitacora
 from aplicaciones.usuarios.usuario_views import get_client_ip
 from aplicaciones.usuarios.authentication import MultiTokenAuthentication
@@ -17,8 +17,35 @@ from .serializers import (
 
 class EstudianteViewSet(viewsets.ModelViewSet):
     queryset = Estudiante.objects.select_related('usuario','curso').all()
-    permission_classes = [PermisoPorPuesto]
+    permission_classes = [PermisoPorPuesto, PermisoPorRol, PermisoEstudianteView]
     authentication_classes = [MultiTokenAuthentication]
+
+    def get_queryset(self):
+        user = self.request.user 
+        qs = super().get_queryset()
+
+        # SuperAdmin / Admin pueden ver todos los estudiantes
+        if hasattr(user, 'superadmin') or hasattr(user, 'admin'):
+            return qs
+        
+        # Tutor: solo ve sus propios estudiantes
+        if hasattr(user, 'tutor'):
+            return qs.filter(tutores__tutor__usuario=user).distinct()
+        
+        # Estudiante: solo ve su propio perfil
+        if hasattr(user, 'estudiante'):
+            return qs.filter(pk.user.pk)
+        
+        if hasattr(user, 'profesor'):
+            prof = user.profesor
+            return qs.filter(
+                Q(curso__tutor_id=prof.tutor_id) |
+                Q(curso__materias__profesor=prof)
+            ).distinct()
+        
+        return Estudiante.objects.none()  # No acceso
+
+
     def get_serializer_class(self):
         if self.action in ['crear_estudiante','editar_estudiante']:
             return CreateEstudianteSerializer

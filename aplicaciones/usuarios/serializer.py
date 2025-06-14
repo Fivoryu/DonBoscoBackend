@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin, Puesto, Admin, Accion, ModeloPermitido, PermisoPuesto
+from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin, Puesto, Admin, Accion, ModeloPermitido, PermisoPuesto, PermisoRol
 from django.contrib.auth.hashers import make_password
 from django.apps import apps as models
 from aplicaciones.institucion.models import UnidadEducativa, Colegio
@@ -153,6 +153,39 @@ class ModeloPermitidoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ModeloPermitido
         fields = ['id', 'nombre']
+
+class PermisoRolSerializer(serializers.ModelSerializer):
+    rol = serializers.PrimaryKeyRelatedField(read_only=True)
+    modelo = serializers.PrimaryKeyRelatedField(read_only=True)
+    accion = serializers.PrimaryKeyRelatedField(read_only=True)
+    rol_nombre    = serializers.CharField(source='rol.nombre', read_only=True)
+    modelo_nombre = serializers.CharField(source='modelo.nombre', read_only=True)
+    accion_nombre = serializers.CharField(source='accion.nombre', read_only=True)
+
+    rol_id = serializers.PrimaryKeyRelatedField(
+        queryset=Rol.objects.all(),
+        source='rol',
+        write_only=True
+    )
+    modelo_id = serializers.PrimaryKeyRelatedField(
+        queryset=ModeloPermitido.objects.all(),
+        source='modelo',
+        write_only=True
+    )
+    accion_id = serializers.PrimaryKeyRelatedField(
+        queryset=Accion.objects.all(),
+        source='accion',
+        write_only=True
+    )
+
+    class Meta:
+        model  = PermisoRol
+        fields = [
+            'id',
+            'rol', 'rol_id', 'rol_nombre',
+            'modelo', 'modelo_id', 'modelo_nombre',
+            'accion', 'accion_id', 'accion_nombre',
+        ]
 
 class PermisoPuestoSerializer(serializers.ModelSerializer):
     puesto = PuestoSerializer(read_only=True)

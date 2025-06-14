@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin, Admin, Puesto, Accion, ModeloPermitido, PermisoPuesto
+from .models import Usuario, Rol, Notificacion, Bitacora, SuperAdmin, Admin, Puesto, Accion, ModeloPermitido, PermisoPuesto, PermisoRol
 
 class CustomUserAdmin(UserAdmin):
     list_display = ('username', 'email', 'nombre', 'apellido', 'rol', 'is_staff')
@@ -76,6 +76,14 @@ class PermisoPuestoAdmin(admin.ModelAdmin):
     list_display = ('puesto', 'modelo', 'accion')
     list_filter = ('puesto', 'modelo', 'accion')
     search_fields = ('puesto__nombre', 'modelo__nombre', 'accion__nombre')
+
+@admin.register(PermisoRol)
+class PermisoRolAdmin(admin.ModelAdmin):
+    list_display  = ('rol', 'modelo', 'accion')
+    list_filter   = ('rol', 'modelo', 'accion')
+    search_fields = ('rol__nombre', 'modelo__nombre', 'accion__nombre')
+
+
 
 # Elimina cualquier registro duplicado de modelos en admin.site.register
 # Si tienes admin.site.register(Puesto) en models.py, elimínalo de allí.

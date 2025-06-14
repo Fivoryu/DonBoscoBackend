@@ -156,17 +156,43 @@ class Puesto(models.Model):
 
 class Accion(models.Model):
     # Acciones CRUD
-    nombre = models.CharField(max_length=20)  # Ej: 'add', 'view', 'change', 'delete'
+    nombre = models.CharField(max_length=20, unique=True)  # Ej: 'add', 'view', 'change', 'delete'
+
+    class Meta: 
+        verbose_name = 'Acción'
+        verbose_name_plural = 'Acciones'
+        db_table = 'accion'
+        ordering = ['nombre']
 
     def __str__(self):
         return self.nombre
     
+
+    
 class ModeloPermitido(models.Model):
     # Aquí puedes definir a qué modelo afecta el permiso
-    nombre = models.CharField(max_length=50)  # Ej: 'profesor', 'estudiante', 'curso'
+    nombre = models.CharField(max_length=50, unique=True)  # Ej: 'profesor', 'estudiante', 'curso'
+
+    class Meta:
+        verbose_name = 'Modelo Permitido'
+        verbose_name_plural = 'Modelos Permitidos'
+        db_table = 'modelo_permitido'
+        ordering = ['nombre']
 
     def __str__(self):
         return self.nombre
+    
+class PermisoRol(models.Model):
+    rol = models.ForeignKey(Rol, on_delete=models.CASCADE, related_name='permisos')
+    modelo = models.ForeignKey(ModeloPermitido, on_delete=models.CASCADE)
+    accion = models.ForeignKey(Accion, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('rol', 'modelo', 'accion')
+        db_table = 'permiso_rol'
+
+    def __str__(self):
+        return f"{self.rol} puede {self.accion} en {self.modelo}"
     
 class PermisoPuesto(models.Model):
     puesto = models.ForeignKey(Puesto, on_delete=models.CASCADE, related_name='permisos')
