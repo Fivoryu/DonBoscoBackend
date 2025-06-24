@@ -8,6 +8,7 @@ from django.db import transaction
 from aplicaciones.usuarios import permissions
 from .serializers import UpdateEstadoLicenciaSerializer 
 from aplicaciones.usuarios.authentication import MultiTokenAuthentication
+from rest_framework import status
 
 from .models import (
     Comportamiento,
@@ -38,6 +39,8 @@ class ComportamientoViewSet(viewsets.ModelViewSet):
 
 class LicenciaViewSet(viewsets.ModelViewSet):
     queryset = Licencia.objects.select_related('estudiante__usuario', 'tutor__usuario').all()
+    authentication_classes = [MultiTokenAuthentication]
+    permission_classes = [permissions.PermisoPorPuesto, permissions.PermisoPorRol]  # o el que estés usando realmente
     filterset_fields = ['estudiante', 'tutor', 'estado']
     search_fields = ['motivo']
 
