@@ -6,10 +6,10 @@ from .models import (
     NotaFinalMateria,
     AutoEvaluacion
 )
-from academico.serializers import MateriaCursoSerializer
-from personal.serializers import ProfesorSerializer
-from estudiantes.serializers import EstudianteSerializer
-from calendario.serializers import PeriodoSerializer
+from aplicaciones.academico.serializers import MateriaCursoSerializer
+from aplicaciones.personal.serializers import ProfesorSerializer
+from aplicaciones.estudiantes.serializers import EstudianteSerializer
+from aplicaciones.calendario.serializers import PeriodoSerializer
 
 class DimensionEvaluacionSerializer(serializers.ModelSerializer):
     periodo = PeriodoSerializer()

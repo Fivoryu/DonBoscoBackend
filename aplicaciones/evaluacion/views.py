@@ -70,7 +70,16 @@ class NotaFinalMateriaViewSet(viewsets.ModelViewSet):
     queryset = NotaFinalMateria.objects.all()
     serializer_class = NotaFinalMateriaSerializer
     filterset_fields = ['estudiante', 'materia_curso', 'periodo', 'estado']
-    
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        anio = self.request.query_params.get('anio')
+
+        if anio:
+            queryset = queryset.filter(periodo__calendario__año=anio)
+
+        return queryset
+
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
             return CreateNotaFinalMateriaSerializer

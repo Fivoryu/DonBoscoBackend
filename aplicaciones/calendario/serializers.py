@@ -1,4 +1,6 @@
 from rest_framework import serializers
+
+from aplicaciones.institucion.models import UnidadEducativa
 from .models import (
   CalendarioAcademico,
   Periodo,
@@ -42,7 +44,9 @@ class FeriadoSerializer(serializers.ModelSerializer):
 from aplicaciones.institucion.serializers import UnidadEducativaSerializer
 
 class CalendarioAcademicoSerializer(serializers.ModelSerializer):
-    unidad_educativa = UnidadEducativaSerializer(read_only=True)
+    unidad_educativa = serializers.PrimaryKeyRelatedField(
+        queryset=UnidadEducativa.objects.all()    
+    )
     unidad_educativa_nombre = serializers.CharField(
         source='unidad_educativa.nombre', read_only=True
     )
@@ -56,6 +60,7 @@ class CalendarioAcademicoSerializer(serializers.ModelSerializer):
             'año', 'fecha_inicio', 'fecha_fin', 'activo',
             'periodos', 'feriados'
         ]
+
 
 class TipoFeriadoSerializer(serializers.ModelSerializer):
     class Meta:

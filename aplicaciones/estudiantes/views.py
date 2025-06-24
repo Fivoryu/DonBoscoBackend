@@ -4,16 +4,24 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
-from aplicaciones.usuarios.permissions import PermisoEstudianteView, PermisoPorPuesto, PermisoPorRol
+from aplicaciones.usuarios.permissions import IsTutor, PermisoEstudianteView, PermisoPorPuesto, PermisoPorRol
 from aplicaciones.usuarios.utils import registrar_bitacora
 from aplicaciones.usuarios.usuario_views import get_client_ip
 from aplicaciones.usuarios.authentication import MultiTokenAuthentication
 from .models import Estudiante, Tutor, TutorEstudiante
+from rest_framework.permissions import IsAuthenticated
 from .serializers import (
     EstudianteSerializer, CreateEstudianteSerializer,
     TutorSerializer, CreateTutorSerializer,
     TutorEstudianteSerializer, CreateTutorEstudianteSerializer
 )
+from aplicaciones.evaluacion.models import NotaFinalMateria, NotaActividad
+from aplicaciones.evaluacion.serializers import (
+    NotaFinalMateriaSerializer,
+    NotaActividadSerializer,
+)
+from rest_framework.permissions import AllowAny
+from rest_framework.decorators import action
 
 class EstudianteViewSet(viewsets.ModelViewSet):
     queryset = Estudiante.objects.select_related('usuario','curso').all()
@@ -58,6 +66,26 @@ class EstudianteViewSet(viewsets.ModelViewSet):
         registrar_bitacora(request.user, get_client_ip(request), 'estudiante', 'ver', 'Listar estudiantes')
         return Response(serializer.data)
 
+    
+    @action(detail=True, methods=['get'], url_path='mi-estudiante', permission_classes=[IsTutor])
+    def ver_mi_estudiante(self, request, pk=None):
+      """
+      Permite a un tutor ver el detalle de un estudiante solo si está vinculado a él.
+      """
+      user = request.user
+      tutor = getattr(user, 'tutor', None)
+
+      if not tutor:
+        return Response({"detail": "No es un tutor válido"}, status=status.HTTP_403_FORBIDDEN)
+
+      try:
+          relacion = TutorEstudiante.objects.select_related("estudiante").get(tutor=tutor, estudiante_id=pk)
+          estudiante = relacion.estudiante
+          serializer = EstudianteSerializer(estudiante)
+          return Response(serializer.data)
+      except TutorEstudiante.DoesNotExist:
+        return Response({"detail": "No tienes acceso a este estudiante"}, status=status.HTTP_403_FORBIDDEN)
+    
     @csrf_exempt
     @action(detail=False, methods=['post'], url_path='crear')
     def crear_estudiante(self, request):
@@ -87,6 +115,40 @@ class EstudianteViewSet(viewsets.ModelViewSet):
             est = serializer.save()
             registrar_bitacora(request.user, get_client_ip(request), 'estudiante', 'editar', f'Editar estudiante {est}')
         return Response(EstudianteSerializer(est).data)
+    
+    @action(
+    detail=True,
+    methods=["get"],
+    url_path="notas",
+    permission_classes=[AllowAny]
+    )
+    def notas(self, request, pk=None):
+        """
+          Devuelve todas las notas (finales y de actividad) para el estudiante pk.
+          Permite filtrar por año: ?anio=2025
+         """
+        anio = request.query_params.get('anio')
+
+        notas_finales_qs = NotaFinalMateria.objects.filter(estudiante_id=pk)
+        notas_actividades_qs = NotaActividad.objects.filter(estudiante_id=pk)
+
+        if anio:
+            notas_finales_qs = notas_finales_qs.filter(periodo__calendario__año=anio)
+
+        notas_finales = NotaFinalMateriaSerializer(notas_finales_qs, many=True).data
+        notas_actividades = NotaActividadSerializer(notas_actividades_qs, many=True).data
+
+        return Response({
+        'notas_finales': notas_finales,
+        'notas_actividades': notas_actividades
+    }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='curso/(?P<curso_id>[^/.]+)')
+    def listar_por_curso(self, request, curso_id=None):
+      estudiantes = self.get_queryset().filter(curso_id=curso_id)
+      serializer = EstudianteSerializer(estudiantes, many=True)
+      registrar_bitacora(request.user, get_client_ip(request), 'estudiante', 'ver', f'Estudiantes del curso {curso_id}')
+      return Response(serializer.data)    
 
     @action(detail=True, methods=['delete'], url_path='eliminar')
     def eliminar_estudiante(self, request, pk=None):
@@ -147,6 +209,8 @@ class TutorViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         except Tutor.DoesNotExist:
             return Response({"detail": "No existe"}, status=status.HTTP_404_NOT_FOUND)
+    
+        
 
 
 class TutorEstudianteViewSet(viewsets.ModelViewSet):
@@ -174,6 +238,24 @@ class TutorEstudianteViewSet(viewsets.ModelViewSet):
             rel = serializer.save()
             registrar_bitacora(request.user, get_client_ip(request), 'tutor_estudiante', 'crear', f'Crear relación {rel}')
         return Response(TutorEstudianteSerializer(rel).data, status=status.HTTP_201_CREATED)
+    
+    from rest_framework.permissions import IsAuthenticated
+
+    @action(detail=False, methods=['get'], url_path='mis-estudiantes', permission_classes=[IsTutor])
+    def mis_estudiantes(self, request):
+     print("Mis estudiantes")
+     print(request.user)
+     print(getattr(request.user, 'tutor', None))   
+     tutor = getattr(request.user, 'tutor', None)
+     if tutor is None:
+        return Response({"detail": "No es un tutor válido"}, status=403)
+
+     relaciones = self.get_queryset().filter(tutor=tutor)
+     estudiantes = [rel.estudiante for rel in relaciones]
+     from aplicaciones.estudiantes.serializers import EstudianteSerializer
+     data = EstudianteSerializer(estudiantes, many=True).data
+     return Response(data)
+
 
     @action(detail=True, methods=['put'], url_path='editar')
     def editar_relacion(self, request, pk=None):
