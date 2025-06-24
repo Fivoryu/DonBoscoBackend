@@ -14,5 +14,6 @@ urlpatterns = [
     path('calendario/', include("aplicaciones.calendario.urls")),
     path("personal/", include("aplicaciones.personal.urls")),
     path("estudiantes/", include("aplicaciones.estudiantes.urls")),
+    path("asistencia/", include("aplicaciones.asistencia.urls")),
     path('', TemplateView.as_view(template_name='index.html')),  # Para servir React
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

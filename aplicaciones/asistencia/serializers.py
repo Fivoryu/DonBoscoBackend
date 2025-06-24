@@ -5,41 +5,50 @@ from .models import (
     AsistenciaGeneral,
     AsistenciaClase
 )
-from estudiantes.serializers import EstudianteSerializer, TutorSerializer
-from academico.serializers import ClaseSerializer
+from aplicaciones.estudiantes.serializers import EstudianteSerializer, TutorSerializer
+from aplicaciones.academico.serializers import ClaseSerializer
 
+# Serializadores de lectura (anidados)
 class ComportamientoSerializer(serializers.ModelSerializer):
-    estudiante = EstudianteSerializer()
-    
+    estudiante = EstudianteSerializer(read_only=True)
+    tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
+    gravedad_display = serializers.SerializerMethodField()
+
     class Meta:
         model = Comportamiento
         fields = '__all__'
 
+    def get_gravedad_display(self, obj):
+        return f"{obj.gravedad}/5"
+
 class LicenciaSerializer(serializers.ModelSerializer):
-    estudiante = EstudianteSerializer()
-    tutor = TutorSerializer()
-    
+    estudiante = EstudianteSerializer(read_only=True)
+    tutor = TutorSerializer(read_only=True)
+    estado_display = serializers.CharField(source='get_estado_display', read_only=True)
+
     class Meta:
         model = Licencia
         fields = '__all__'
 
 class AsistenciaGeneralSerializer(serializers.ModelSerializer):
-    estudiante = EstudianteSerializer()
-    
+    estudiante = EstudianteSerializer(read_only=True)
+    estado_display = serializers.CharField(source='get_estado_display', read_only=True)
+
     class Meta:
         model = AsistenciaGeneral
         fields = '__all__'
 
 class AsistenciaClaseSerializer(serializers.ModelSerializer):
-    clase = ClaseSerializer()
-    estudiante = EstudianteSerializer()
-    licencia = LicenciaSerializer()
-    
+    clase = ClaseSerializer(read_only=True)
+    estudiante = EstudianteSerializer(read_only=True)
+    licencia = LicenciaSerializer(read_only=True)
+    estado_display = serializers.CharField(source='get_estado_display', read_only=True)
+
     class Meta:
         model = AsistenciaClase
         fields = '__all__'
 
-# Serializers para creación/actualización
+# Serializadores de escritura (solo IDs)
 class CreateComportamientoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comportamiento

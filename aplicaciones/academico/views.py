@@ -23,7 +23,7 @@ from django.views.decorators.csrf import csrf_exempt
 from aplicaciones.usuarios.authentication import CsrfExemptSessionAuthentication
 from rest_framework.permissions import IsAuthenticated
 from aplicaciones.usuarios.authentication import MultiTokenAuthentication
-from aplicaciones.usuarios.permissions import IsAdminOrSuperAdmin, PermisoPorPuesto
+from aplicaciones.usuarios.permissions import IsAdminOrSuperAdmin, PermisoPorPuesto, PermisoPorRol
 
 
 
@@ -31,7 +31,7 @@ class GradoViewSet(viewsets.ModelViewSet):
     queryset = Grado.objects.all()
     serializer_class = GradoSerializer
     filterset_fields = ['unidad_educativa', 'nivel_educativo']
-    permission_classes = [IsAdminOrSuperAdmin]
+    permission_classes = [PermisoPorRol | PermisoPorPuesto]
     authentication_classes = [MultiTokenAuthentication]
 
     def get_serializer_class(self):
@@ -120,7 +120,7 @@ class GradoViewSet(viewsets.ModelViewSet):
 class ParaleloViewSet(viewsets.ModelViewSet):
     queryset = Paralelo.objects.all()
     serializer_class = ParaleloSerializer
-    permission_classes = [IsAdminOrSuperAdmin]
+    permission_classes = [PermisoPorRol | PermisoPorPuesto]
     authentication_classes = [MultiTokenAuthentication]
     filterset_fields = ['grado', 'letra']
 
@@ -224,7 +224,7 @@ class ParaleloViewSet(viewsets.ModelViewSet):
 class CursoViewSet(viewsets.ModelViewSet):
     queryset = Curso.objects.all()
     serializer_class = CursoSerializer
-    permission_classes = [IsAdminOrSuperAdmin]
+    permission_classes = [PermisoPorRol | PermisoPorPuesto]
     authentication_classes = [MultiTokenAuthentication]
     filterset_fields = ['paralelo']
 
@@ -276,7 +276,7 @@ class CursoViewSet(viewsets.ModelViewSet):
 class MateriaViewSet(viewsets.ModelViewSet):
     queryset = Materia.objects.all()
     serializer_class = MateriaSerializer
-    permission_classes = [IsAdminOrSuperAdmin]
+    permission_classes = [PermisoPorRol | PermisoPorPuesto]
     authentication_classes = [MultiTokenAuthentication]
     filterset_fields = ['nombre']
     search_fields = ['nombre']
@@ -317,7 +317,7 @@ class MateriaViewSet(viewsets.ModelViewSet):
 class MateriaCursoViewSet(viewsets.ModelViewSet):
     queryset = MateriaCurso.objects.all()
     serializer_class = MateriaCursoSerializer
-    permission_classes = [IsAdminOrSuperAdmin]
+    permission_classes = [PermisoPorRol | PermisoPorPuesto]
     authentication_classes = [MultiTokenAuthentication]
     filterset_fields = ['curso', 'materia']
 
@@ -404,7 +404,7 @@ class ClaseViewSet(viewsets.ModelViewSet):
         'materia_curso__materia', 'materia_curso__curso', 'aula'
     )
     serializer_class      = ClaseSerializer
-    permission_classes    = [IsAdminOrSuperAdmin]
+    permission_classes = [PermisoPorRol | PermisoPorPuesto]
     authentication_classes = [MultiTokenAuthentication]
     filterset_fields      = ['materia_curso', 'aula']
     search_fields         = ['materia_curso__materia__nombre',

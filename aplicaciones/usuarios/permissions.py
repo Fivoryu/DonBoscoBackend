@@ -16,7 +16,7 @@ def metodo_a_accion(method: str) -> str:
     """
     Mapea el método HTTP a la acción correspondiente.
     """
-    return _METHOD_TO_ACTION.get(method, Accion.VIEW)
+    return _METHOD_TO_ACTION.get(method, Accion.nombre)
 
 # ──────────────────────────────────────────────────────────────
 #  Permisos base por tipo de usuario

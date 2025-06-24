@@ -652,7 +652,7 @@ class PermisoRolViewSet(viewsets.ModelViewSet):
     """
     queryset = PermisoRol.objects.select_related('rol', 'modelo', 'accion')
     serializer_class = PermisoRolSerializer
-    permission_classes = [PermisoPorPuesto, PermisoPorRol]
+    permission_classes = [IsAuthenticated]
     authentication_classes = [MultiTokenAuthentication]
 
 def get_client_ip(request):
