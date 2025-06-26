@@ -118,6 +118,19 @@ class AsistenciaGeneralViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['delete'], url_path='eliminar')
     def eliminar(self, request, pk=None):
         return self.destroy(request, pk=pk)
+    
+    def create(self, request, *args, **kwargs):
+        print("DATA RECIBIDA:", request.data)
+        is_many = isinstance(request.data, list)
+        serializer = self.get_serializer(data=request.data, many=is_many)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            print("ERRORES DE SERIALIZER:", serializer.errors)
+            raise
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 class AsistenciaClaseViewSet(viewsets.ModelViewSet):
     queryset = AsistenciaClase.objects.select_related('clase', 'estudiante', 'licencia').all()
