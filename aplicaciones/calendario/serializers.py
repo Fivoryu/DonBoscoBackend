@@ -90,12 +90,12 @@ class HorarioSerializer(serializers.ModelSerializer):
         ]
 
 class ClaseHorarioSerializer(serializers.ModelSerializer):
-    clase_id = serializers.PrimaryKeyRelatedField(
-        source='clase', read_only=True
-    )
-    horario_id = serializers.PrimaryKeyRelatedField(
-        source='horario', read_only=True
-    )
+    #clase_id = serializers.PrimaryKeyRelatedField(
+    #    source='clase', read_only=True
+    #)
+    #horario_id = serializers.PrimaryKeyRelatedField(
+    #    source='horario', read_only=True
+    #)
 
     class Meta:
         model = ClaseHorario
